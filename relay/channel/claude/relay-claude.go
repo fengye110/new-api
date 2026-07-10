@@ -268,6 +268,11 @@ func RequestOpenAI2ClaudeMessage(c *gin.Context, textRequest dto.GeneralOpenAIRe
 			Role:    message.Role,
 			Content: message.Content,
 		}
+		if !message.IsStringContent() {
+			if parsedContent := message.ParseContent(); len(parsedContent) > 0 {
+				fmtMessage.SetMediaContent(parsedContent)
+			}
+		}
 		if message.Role == "tool" {
 			fmtMessage.ToolCallId = message.ToolCallId
 		}
@@ -308,8 +313,9 @@ func RequestOpenAI2ClaudeMessage(c *gin.Context, textRequest dto.GeneralOpenAIRe
 				for _, ctx := range message.ParseContent() {
 					if ctx.Type == "text" && ctx.Text != "" {
 						systemMessages = append(systemMessages, dto.ClaudeMediaMessage{
-							Type: "text",
-							Text: common.GetPointer[string](ctx.Text),
+							Type:         "text",
+							Text:         common.GetPointer[string](ctx.Text),
+							CacheControl: ctx.CacheControl,
 						})
 					}
 					// 未来可以在这里扩展对图片等其他类型的支持
@@ -376,8 +382,9 @@ func RequestOpenAI2ClaudeMessage(c *gin.Context, textRequest dto.GeneralOpenAIRe
 					case "text":
 						if mediaMessage.Text != "" {
 							claudeMediaMessages = append(claudeMediaMessages, dto.ClaudeMediaMessage{
-								Type: "text",
-								Text: common.GetPointer[string](mediaMessage.Text),
+								Type:         "text",
+								Text:         common.GetPointer[string](mediaMessage.Text),
+								CacheControl: mediaMessage.CacheControl,
 							})
 						}
 					default:
@@ -402,6 +409,7 @@ func RequestOpenAI2ClaudeMessage(c *gin.Context, textRequest dto.GeneralOpenAIRe
 
 						claudeMediaMessage.Source.MediaType = mimeType
 						claudeMediaMessage.Source.Data = base64Data
+						claudeMediaMessage.CacheControl = mediaMessage.CacheControl
 						claudeMediaMessages = append(claudeMediaMessages, claudeMediaMessage)
 						continue
 					}
