@@ -146,7 +146,10 @@ func chatCompletionsViaResponses(c *gin.Context, info *relaycommon.RelayInfo, ad
 
 	httpResp = resp.(*http.Response)
 	clientStream := info.IsStream
-	upstreamStream := isResponsesEventStreamContentType(httpResp.Header.Get("Content-Type"))
+	// Codex always returns an event stream when `stream: true` is sent, but its
+	// upstream response can omit the standard text/event-stream content type.
+	upstreamStream := isResponsesEventStreamContentType(httpResp.Header.Get("Content-Type")) ||
+		info.ChannelType == constant.ChannelTypeCodex
 	info.IsStream = clientStream || upstreamStream
 	if httpResp.StatusCode != http.StatusOK {
 		newApiErr := service.RelayErrorHandler(c.Request.Context(), httpResp, false)
