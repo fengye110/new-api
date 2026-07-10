@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/tooltip'
 import { formatQuota, formatTimestamp } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import type { SubscriptionAccessGroup } from '@/features/subscriptions/types'
 
 import {
   USER_STATUS,
@@ -53,8 +54,13 @@ function getQuotaProgressColor(percentage: number): string {
   return '[&_[data-slot=progress-indicator]]:bg-success'
 }
 
-export function useUsersColumns(): ColumnDef<User>[] {
+export function useUsersColumns(
+  subscriptionGroups: SubscriptionAccessGroup[]
+): ColumnDef<User>[] {
   const { t } = useTranslation()
+  const subscriptionGroupNames = new Map(
+    subscriptionGroups.map((group) => [group.id, group.name])
+  )
   return [
     {
       id: 'select',
@@ -291,6 +297,44 @@ export function useUsersColumns(): ColumnDef<User>[] {
         cardOrder: 20,
         contentMode: 'full',
       },
+    },
+    {
+      id: 'subscription_visibility_permissions',
+      header: t('Subscription Visibility Permissions'),
+      cell: ({ row }) => {
+        const groupNames = (row.original.subscription_group_ids || [])
+          .map((id) => subscriptionGroupNames.get(id))
+          .filter((name): name is string => Boolean(name))
+
+        if (groupNames.length === 0) {
+          return (
+            <StatusBadge
+              appearance='soft'
+              variant='neutral'
+              className='-ml-1.5'
+            >
+              {t('Default All')}
+            </StatusBadge>
+          )
+        }
+
+        return (
+          <div className='flex max-w-[240px] flex-wrap gap-1'>
+            {groupNames.map((name) => (
+              <StatusBadge
+                key={name}
+                appearance='soft'
+                variant='neutral'
+              >
+                {name}
+              </StatusBadge>
+            ))}
+          </div>
+        )
+      },
+      enableSorting: false,
+      size: 240,
+      meta: { mobileHidden: true },
     },
     {
       id: 'invite_info',

@@ -1256,6 +1256,7 @@
     "Default (New Frontend)": "По умолчанию (Новый интерфейс)",
     "Default / range": "По умолчанию / диапазон",
     "Default administrator permissions can be overridden for this user.": "Для этого пользователя можно переопределить стандартные права администратора.",
+    "Default All": "Все по умолчанию",
     "Default API Version *": "Версия API по умолчанию *",
     "Default API version for this channel": "Версия API по умолчанию для этого канала",
     "Default Bearer": "Bearer по умолчанию",

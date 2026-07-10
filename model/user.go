@@ -56,6 +56,31 @@ type User struct {
 	SubscriptionGroupIds []int                      `json:"subscription_group_ids,omitempty" gorm:"-:all"`
 }
 
+func populateUserSubscriptionGroupIds(tx *gorm.DB, users []*User) error {
+	if len(users) == 0 {
+		return nil
+	}
+
+	userIds := make([]int, 0, len(users))
+	for _, user := range users {
+		userIds = append(userIds, user.Id)
+	}
+
+	var assignments []UserSubscriptionAccessGroup
+	if err := tx.Where("user_id IN ?", userIds).Find(&assignments).Error; err != nil {
+		return err
+	}
+
+	groupIdsByUser := make(map[int][]int, len(users))
+	for _, assignment := range assignments {
+		groupIdsByUser[assignment.UserId] = append(groupIdsByUser[assignment.UserId], assignment.GroupId)
+	}
+	for _, user := range users {
+		user.SubscriptionGroupIds = groupIdsByUser[user.Id]
+	}
+	return nil
+}
+
 func (user *User) ToBaseUser() *UserBase {
 	cache := &UserBase{
 		Id:       user.Id,
@@ -312,6 +337,10 @@ func GetAllUsers(pageInfo *common.PageInfo) (users []*User, total int64, err err
 		tx.Rollback()
 		return nil, 0, err
 	}
+	if err = populateUserSubscriptionGroupIds(tx, users); err != nil {
+		tx.Rollback()
+		return nil, 0, err
+	}
 
 	// Commit transaction
 	if err = tx.Commit().Error; err != nil {
@@ -321,7 +350,7 @@ func GetAllUsers(pageInfo *common.PageInfo) (users []*User, total int64, err err
 	return users, total, nil
 }
 
-func SearchUsers(keyword string, group string, role *int, status *int, startIdx int, num int) ([]*User, int64, error) {
+func SearchUsers(keyword string, group string, subscriptionGroupId *int, role *int, status *int, startIdx int, num int) ([]*User, int64, error) {
 	var users []*User
 	var total int64
 	var err error
@@ -356,6 +385,16 @@ func SearchUsers(keyword string, group string, role *int, status *int, startIdx 
 	if group != "" {
 		query = query.Where(commonGroupCol+" = ?", group)
 	}
+	if subscriptionGroupId != nil {
+		var subscriptionGroup SubscriptionAccessGroup
+		if err := tx.First(&subscriptionGroup, *subscriptionGroupId).Error; err != nil {
+			tx.Rollback()
+			return nil, 0, err
+		}
+		if !subscriptionGroup.IsDefault {
+			query = query.Joins("JOIN user_subscription_access_groups AS ug ON ug.user_id = users.id").Where("ug.group_id = ?", *subscriptionGroupId)
+		}
+	}
 	if role != nil {
 		query = query.Where("role = ?", *role)
 	}
@@ -377,6 +416,10 @@ func SearchUsers(keyword string, group string, role *int, status *int, startIdx 
 	// 获取分页数据
 	err = query.Omit("password", "access_token").Order("id desc").Limit(num).Offset(startIdx).Find(&users).Error
 	if err != nil {
+		tx.Rollback()
+		return nil, 0, err
+	}
+	if err = populateUserSubscriptionGroupIds(tx, users); err != nil {
 		tx.Rollback()
 		return nil, 0, err
 	}

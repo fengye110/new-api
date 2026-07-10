@@ -1256,6 +1256,7 @@
     "Default (New Frontend)": "デフォルト（新フロントエンド）",
     "Default / range": "デフォルト / 範囲",
     "Default administrator permissions can be overridden for this user.": "このユーザーには既定の管理者権限を上書きできます。",
+    "Default All": "デフォルトすべて",
     "Default API Version *": "デフォルトのAPIバージョン *",
     "Default API version for this channel": "このチャネルのデフォルトのAPIバージョン",
     "Default Bearer": "既定の Bearer",

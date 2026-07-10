@@ -1256,6 +1256,7 @@
     "Default (New Frontend)": "Mặc định (Frontend mới)",
     "Default / range": "Mặc định / khoảng",
     "Default administrator permissions can be overridden for this user.": "Có thể ghi đè quyền quản trị viên mặc định cho người dùng này.",
+    "Default All": "Mặc định tất cả",
     "Default API Version *": "Phiên bản API mặc định *",
     "Default API version for this channel": "Phiên bản API mặc định cho kênh này",
     "Default Bearer": "Bearer mặc định",

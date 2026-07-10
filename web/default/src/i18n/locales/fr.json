@@ -1256,6 +1256,7 @@
     "Default (New Frontend)": "Par défaut (Nouveau frontend)",
     "Default / range": "Défaut / plage",
     "Default administrator permissions can be overridden for this user.": "Les autorisations administrateur par défaut peuvent être remplacées pour cet utilisateur.",
+    "Default All": "Tous par défaut",
     "Default API Version *": "Version API par défaut *",
     "Default API version for this channel": "Version API par défaut pour ce canal",
     "Default Bearer": "Bearer par defaut",

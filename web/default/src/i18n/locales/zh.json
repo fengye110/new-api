@@ -1256,6 +1256,7 @@
     "Default (New Frontend)": "新版前端（默认）",
     "Default / range": "默认值 / 范围",
     "Default administrator permissions can be overridden for this user.": "可以为此用户覆盖默认管理员权限。",
+    "Default All": "默认所有",
     "Default API Version *": "默认 API 版本 *",
     "Default API version for this channel": "此渠道的默认 API 版本",
     "Default Bearer": "默认 Bearer",

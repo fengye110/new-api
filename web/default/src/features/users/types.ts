@@ -62,6 +62,7 @@ export const userSchema = z.object({
   admin_permissions: z
     .record(z.string(), z.record(z.string(), z.boolean()))
     .optional(),
+  subscription_group_ids: z.array(z.number()).optional(),
 })
 export type User = z.infer<typeof userSchema>
 
@@ -99,6 +100,7 @@ export interface SearchUsersParams {
   group?: string
   role?: string
   status?: string
+  subscription_group_id?: string
   p?: number
   page_size?: number
 }

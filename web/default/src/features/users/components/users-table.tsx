@@ -29,6 +29,7 @@ import {
 } from '@/components/data-table'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
 
+import { getSubscriptionAccessGroups } from '@/features/subscriptions/api'
 import { getUsers, searchUsers } from '../api'
 import {
   USER_STATUS,
@@ -49,8 +50,16 @@ function isDisabledUserRow(user: User) {
 
 export function UsersTable() {
   const { t } = useTranslation()
-  const columns = useUsersColumns()
   const { refreshTrigger } = useUsers()
+  const { data: subscriptionGroupsData } = useQuery({
+    queryKey: ['subscription-access-groups'],
+    queryFn: getSubscriptionAccessGroups,
+    staleTime: 5 * 60 * 1000,
+  })
+  const subscriptionGroupOptions = (subscriptionGroupsData?.data || [])
+    .filter((group) => !group.is_default)
+    .map((group) => ({ value: String(group.id), label: group.name }))
+  const columns = useUsersColumns(subscriptionGroupsData?.data || [])
 
   const {
     globalFilter,
@@ -73,6 +82,11 @@ export function UsersTable() {
       { columnId: 'status', searchKey: 'status', type: 'array' },
       { columnId: 'role', searchKey: 'role', type: 'array' },
       { columnId: 'group', searchKey: 'group', type: 'string' },
+      {
+        columnId: 'subscription_group',
+        searchKey: 'subscriptionGroup',
+        type: 'array',
+      },
     ],
   })
   const statusFilter =
@@ -86,6 +100,10 @@ export function UsersTable() {
   const groupFilter =
     (columnFilters.find((filter) => filter.id === 'group')?.value as string) ??
     ''
+  const subscriptionGroupFilter =
+    (columnFilters.find((filter) => filter.id === 'subscription_group')?.value as
+      | string[]
+      | undefined) ?? []
 
   // Fetch data with React Query
   const { data, isLoading, isFetching } = useQuery({
@@ -97,12 +115,16 @@ export function UsersTable() {
       statusFilter,
       roleFilter,
       groupFilter,
+      subscriptionGroupFilter,
       refreshTrigger,
     ],
     queryFn: async () => {
       const hasFilter = globalFilter?.trim()
       const hasColumnFilter =
-        statusFilter.length > 0 || roleFilter.length > 0 || Boolean(groupFilter)
+        statusFilter.length > 0 ||
+        roleFilter.length > 0 ||
+        Boolean(groupFilter) ||
+        subscriptionGroupFilter.length > 0
       const params = {
         p: pagination.pageIndex + 1,
         page_size: pagination.pageSize,
@@ -116,6 +138,7 @@ export function UsersTable() {
               status: statusFilter[0] ?? '',
               role: roleFilter[0] ?? '',
               group: groupFilter,
+              subscription_group_id: subscriptionGroupFilter[0] ?? '',
             })
           : await getUsers(params)
 
@@ -191,6 +214,12 @@ export function UsersTable() {
             columnId: 'role',
             title: t('Role'),
             options: getUserRoleOptions(t),
+            singleSelect: true,
+          },
+          {
+            columnId: 'subscription_group',
+            title: t('Subscription Visibility Permissions'),
+            options: subscriptionGroupOptions,
             singleSelect: true,
           },
         ],
