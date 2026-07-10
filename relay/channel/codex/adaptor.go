@@ -54,6 +54,21 @@ func (a *Adaptor) ConvertEmbeddingRequest(c *gin.Context, info *relaycommon.Rela
 
 func (a *Adaptor) ConvertOpenAIResponsesRequest(c *gin.Context, info *relaycommon.RelayInfo, request dto.OpenAIResponsesRequest) (any, error) {
 	isCompact := info != nil && info.RelayMode == relayconstant.RelayModeResponsesCompact
+	if common.GetJsonType(request.Input) == "string" {
+		var input string
+		if err := common.Unmarshal(request.Input, &input); err != nil {
+			return nil, err
+		}
+		inputItems := []map[string]any{{
+			"role":    "user",
+			"content": input,
+		}}
+		inputJSON, err := common.Marshal(inputItems)
+		if err != nil {
+			return nil, err
+		}
+		request.Input = inputJSON
+	}
 
 	if info != nil && info.ChannelSetting.SystemPrompt != "" {
 		systemPrompt := info.ChannelSetting.SystemPrompt
@@ -127,7 +142,7 @@ func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycom
 	if info.IsStream {
 		return openai.OaiResponsesStreamHandler(c, info, resp)
 	}
-	return openai.OaiResponsesHandler(c, info, resp)
+	return openai.OaiResponsesBufferedStreamHandler(c, info, resp)
 }
 
 func (a *Adaptor) GetModelList() []string {
