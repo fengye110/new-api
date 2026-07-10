@@ -101,9 +101,13 @@ func (a *Adaptor) ConvertOpenAIResponsesRequest(c *gin.Context, info *relaycommo
 	}
 	// codex: store must be false
 	request.Store = json.RawMessage("false")
+	// The Codex responses endpoint only supports server-sent events. The relay
+	// buffers that stream for non-streaming clients when necessary.
+	request.Stream = common.GetPointer(true)
 	// rm max_output_tokens
 	request.MaxOutputTokens = nil
 	request.Temperature = nil
+	request.TopP = nil
 	return request, nil
 }
 
