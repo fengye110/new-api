@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import type { PermissionCatalog } from '@/lib/admin-permissions'
 import { api } from '@/lib/api'
+import type { SubscriptionAccessGroup } from '@/features/subscriptions/types'
 
 import type {
   User,
@@ -95,6 +96,24 @@ export async function updateUser(
   data: UserFormData & { id: number }
 ): Promise<ApiResponse<Partial<User>>> {
   const res = await api.put('/api/user/', data)
+  return res.data
+}
+
+export async function getUserSubscriptionAccessGroups(
+  userId: number
+): Promise<ApiResponse<SubscriptionAccessGroup[]>> {
+  const res = await api.get(`/api/subscription/admin/users/${userId}/access-groups`)
+  return res.data
+}
+
+export async function replaceUserSubscriptionAccessGroups(
+  userId: number,
+  groupIds: number[]
+): Promise<ApiResponse> {
+  const res = await api.put(
+    `/api/subscription/admin/users/${userId}/access-groups`,
+    { group_ids: groupIds }
+  )
   return res.data
 }
 

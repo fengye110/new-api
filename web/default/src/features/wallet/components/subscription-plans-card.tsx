@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Crown, RefreshCw, Sparkles, Check } from 'lucide-react'
+import { Check, Crown, Loader2, RefreshCw, Sparkles } from 'lucide-react'
 import { useState, useEffect, useMemo, useCallback, type ReactNode } from 'react'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
@@ -24,6 +24,16 @@ import { toast } from 'sonner'
 
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/design-system/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/design-system/alert-dialog'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import {
@@ -43,6 +53,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import {
+  disableSelfSubscription,
+  deleteSelfSubscription,
+  enableSelfSubscription,
   getPublicPlans,
   getSelfSubscriptionFull,
   updateBillingPreference,
@@ -212,6 +225,12 @@ export function SubscriptionPlansCard({
 
   const [purchaseOpen, setPurchaseOpen] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState<PlanRecord | null>(null)
+  const [toggleTarget, setToggleTarget] = useState<UserSubscriptionRecord | null>(
+    null
+  )
+  const [togglingSubscription, setTogglingSubscription] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<UserSubscriptionRecord | null>(null)
+  const [deletingSubscription, setDeletingSubscription] = useState(false)
 
   const enableStripe = !!topupInfo?.enable_stripe_topup
   const enableCreem = !!topupInfo?.enable_creem_topup
@@ -282,6 +301,52 @@ export function SubscriptionPlansCard({
     } catch {
       toast.error(t('Request failed'))
       setBillingPreference(previous)
+    }
+  }
+
+  const handleSubscriptionToggle = async () => {
+    const subscription = toggleTarget?.subscription
+    if (!subscription) return
+
+    setTogglingSubscription(true)
+    try {
+      const res = subscription.user_disabled
+        ? await enableSelfSubscription(subscription.id)
+        : await disableSelfSubscription(subscription.id)
+      if (!res.success) {
+        toast.error(res.message || t('Operation failed'))
+        return
+      }
+      toast.success(
+        subscription.user_disabled
+          ? t('Subscription enabled')
+          : t('Subscription disabled')
+      )
+      setToggleTarget(null)
+      await fetchSelfSubscription()
+    } catch {
+      toast.error(t('Request failed'))
+    } finally {
+      setTogglingSubscription(false)
+    }
+  }
+
+  const handleSubscriptionDelete = async () => {
+    const subscription = deleteTarget?.subscription
+    if (!subscription) return
+    setDeletingSubscription(true)
+    try {
+      const res = await deleteSelfSubscription(subscription.id)
+      if (!res.success) {
+        toast.error(res.message || t('Delete failed'))
+        return
+      }
+      setDeleteTarget(null)
+      await fetchSelfSubscription()
+    } catch {
+      toast.error(t('Request failed'))
+    } finally {
+      setDeletingSubscription(false)
     }
   }
 
@@ -509,6 +574,7 @@ export function SubscriptionPlansCard({
                   const isCancelled = subscription?.status === 'cancelled'
                   const isActive =
                     subscription?.status === 'active' && !isExpired
+                  const isUserDisabled = subscription?.user_disabled === true
                   const endLabel = getSubscriptionEndLabel(
                     isActive,
                     isCancelled,
@@ -551,7 +617,17 @@ export function SubscriptionPlansCard({
                               ? `${planTitle} · ${t('Subscription')} #${subscription?.id}`
                               : `${t('Subscription')} #${subscription?.id}`}
                           </span>
-                          {statusBadge}
+                           {statusBadge}
+                           {isActive && (
+                              <StatusBadge
+                                appearance='soft'
+                                variant={isUserDisabled ? 'neutral' : 'success'}
+                              >
+                                {isUserDisabled
+                                  ? t('Disabled for billing')
+                                  : t('Enabled for billing')}
+                              </StatusBadge>
+                           )}
                         </div>
                         {isActive && (
                           <span className='text-muted-foreground'>
@@ -647,10 +723,37 @@ export function SubscriptionPlansCard({
                       {totalAmount > 0 && (
                         <Progress value={usagePercent} className='mt-2 h-1.5' />
                       )}
-                      {isActive && sub?.sub_quota_usage && sub.sub_quota_usage.length > 0 && (
-                        <SubQuotaUsageList usages={sub.sub_quota_usage} t={t} />
-                      )}
-                    </div>
+                       {isActive && sub?.sub_quota_usage && sub.sub_quota_usage.length > 0 && (
+                         <SubQuotaUsageList usages={sub.sub_quota_usage} t={t} />
+                       )}
+                       {isActive && isUserDisabled && (
+                         <p className='text-muted-foreground mt-2'>
+                           {t(
+                             'This subscription will not be charged. Its validity period continues to elapse.'
+                           )}
+                         </p>
+                       )}
+                        {isActive && (
+                          <div className='mt-3 flex gap-2'>
+                            <Button
+                              variant='outline'
+                              size='sm'
+                              onClick={() => setToggleTarget(sub)}
+                            >
+                              {isUserDisabled
+                                ? t('Enable subscription')
+                                : t('Disable subscription')}
+                            </Button>
+                            <Button
+                              variant='destructive'
+                              size='sm'
+                              onClick={() => setDeleteTarget(sub)}
+                            >
+                              {t('Delete')}
+                            </Button>
+                          </div>
+                        )}
+                     </div>
                   )
                 })}
               </div>
@@ -814,6 +917,69 @@ export function SubscriptionPlansCard({
             : undefined
         }
       />
+
+      <AlertDialog
+        open={toggleTarget !== null}
+        onOpenChange={(open) => !open && !togglingSubscription && setToggleTarget(null)}
+      >
+        <AlertDialogContent className='max-sm:w-[calc(100vw-1.5rem)] sm:max-w-md'>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {toggleTarget?.subscription.user_disabled
+                ? t('Enable subscription?')
+                : t('Disable subscription?')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {toggleTarget?.subscription.user_disabled
+                ? t('Once enabled, this subscription will participate in quota billing again.')
+                : t(
+                    'After disabling, this subscription will not be charged. Its validity period will continue to elapse, and you can enable it again before it expires.'
+                  )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className='grid grid-cols-2 gap-2 sm:flex'>
+            <AlertDialogCancel disabled={togglingSubscription}>
+              {t('Cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSubscriptionToggle}
+              disabled={togglingSubscription}
+            >
+              {togglingSubscription && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+              {toggleTarget?.subscription.user_disabled
+                ? t('Confirm enable')
+                : t('Confirm disable')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && !deletingSubscription && setDeleteTarget(null)}
+      >
+        <AlertDialogContent className='max-sm:w-[calc(100vw-1.5rem)] sm:max-w-md'>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('Delete subscription?')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('This action cannot be undone.')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className='grid grid-cols-2 gap-2 sm:flex'>
+            <AlertDialogCancel disabled={deletingSubscription}>
+              {t('Cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant='destructive'
+              onClick={handleSubscriptionDelete}
+              disabled={deletingSubscription}
+            >
+              {deletingSubscription && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+              {t('Delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

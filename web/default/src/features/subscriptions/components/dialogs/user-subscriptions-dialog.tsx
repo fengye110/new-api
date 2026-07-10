@@ -332,10 +332,11 @@ export function UserSubscriptionsDialog(props: Props) {
                         <SubscriptionStatusBadge sub={sub} t={t} />
                         {sub.user_disabled && (
                           <StatusBadge
-                            label={t('Disabled for billing')}
+                            appearance='soft'
                             variant='neutral'
-                            copyable={false}
-                          />
+                          >
+                            {t('Disabled for billing')}
+                          </StatusBadge>
                         )}
                       </div>
                     )

@@ -46,6 +46,7 @@ export const subscriptionPlanSchema = z.object({
   waffo_pancake_product_id: z.string().optional(),
   // Stored as a JSON text field on the backend ("" or a JSON array string).
   sub_quota_limits: z.string().optional().default(''),
+  subscription_group_ids: z.array(z.number()).optional(),
 })
 
 export type SubscriptionPlan = z.infer<typeof subscriptionPlanSchema>
@@ -139,6 +140,31 @@ export interface ApiResponse<T = unknown> {
 
 export interface PlanPayload {
   plan: Partial<SubscriptionPlan>
+  subscription_group_ids?: number[]
+}
+
+export interface SubscriptionAccessGroup {
+  id: number
+  key: string
+  name: string
+  description: string
+  enabled: boolean
+  is_default: boolean
+  sort_order: number
+  user_count?: number
+  plan_count?: number
+}
+
+export interface SubscriptionAccessGroupUser {
+  id: number
+  username: string
+  display_name: string
+}
+
+export interface SubscriptionAccessGroupPlan {
+  id: number
+  title: string
+  enabled: boolean
 }
 
 export interface SubscriptionPayRequest {

@@ -41,6 +41,11 @@ func SubscriptionRequestEpay(c *gin.Context) {
 		common.ApiErrorMsg(c, "套餐未启用")
 		return
 	}
+	allowed, err := model.CanUserAccessSubscriptionPlan(c.GetInt("id"), plan.Id)
+	if err != nil || !allowed {
+		common.ApiError(c, model.ErrSubscriptionPlanNotAccessible)
+		return
+	}
 	if plan.PriceAmount < 0.01 {
 		common.ApiErrorMsg(c, "套餐金额过低")
 		return

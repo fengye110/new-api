@@ -75,6 +75,7 @@ export function getPlanFormSchema(t: TFunction) {
     creem_product_id: z.string().optional(),
     waffo_pancake_product_id: z.string().optional(),
     sub_quota_limits: z.array(subQuotaLimitSchema).max(MAX_SUB_QUOTA_LIMITS).optional().default([]),
+    subscription_group_ids: z.array(z.number()).min(1),
   })
 }
 
@@ -100,7 +101,8 @@ export const PLAN_FORM_DEFAULTS: PlanFormValues = {
   stripe_price_id: '',
   creem_product_id: '',
   waffo_pancake_product_id: '',
-  sub_quota_limits: [],
+    sub_quota_limits: [],
+    subscription_group_ids: [],
 }
 
 export function parseSubQuotaLimits(raw: string | undefined): {
@@ -164,6 +166,7 @@ export function planToFormValues(plan: SubscriptionPlan): PlanFormValues {
     creem_product_id: plan.creem_product_id || '',
     waffo_pancake_product_id: plan.waffo_pancake_product_id || '',
     sub_quota_limits: parseSubQuotaLimits(plan.sub_quota_limits),
+    subscription_group_ids: plan.subscription_group_ids || [],
   }
 }
 
@@ -187,5 +190,6 @@ export function formValuesToPlanPayload(values: PlanFormValues): PlanPayload {
       downgrade_group: values.downgrade_group || '',
       sub_quota_limits: JSON.stringify(values.sub_quota_limits || []),
     },
+    subscription_group_ids: values.subscription_group_ids,
   }
 }

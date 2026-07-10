@@ -190,6 +190,9 @@ type SubscriptionPlan struct {
 
 	CreatedAt int64 `json:"created_at" gorm:"bigint"`
 	UpdatedAt int64 `json:"updated_at" gorm:"bigint"`
+
+	SubscriptionGroups   []SubscriptionAccessGroup `json:"subscription_groups,omitempty" gorm:"-"`
+	SubscriptionGroupIds []int                     `json:"subscription_group_ids,omitempty" gorm:"-"`
 }
 
 func (p *SubscriptionPlan) BeforeCreate(tx *gorm.DB) error {
@@ -724,7 +727,14 @@ func AdminBindSubscription(userId int, planId int, sourceNote string) (string, e
 		return "", err
 	}
 	err = DB.Transaction(func(tx *gorm.DB) error {
-		_, err := CreateUserSubscriptionFromPlanTx(tx, userId, plan, "admin")
+		allowed, err := CanUserAccessSubscriptionPlanTx(tx, userId, plan.Id)
+		if err != nil {
+			return err
+		}
+		if !allowed {
+			return ErrSubscriptionPlanNotAccessible
+		}
+		_, err = CreateUserSubscriptionFromPlanTx(tx, userId, plan, "admin")
 		return err
 	})
 	if err != nil {
@@ -769,10 +779,17 @@ func PurchaseSubscriptionWithBalance(userId int, planId int) error {
 		if !plan.Enabled {
 			return errors.New("套餐未启用")
 		}
+		allowed, err := CanUserAccessSubscriptionPlanTx(tx, userId, plan.Id)
+		if err != nil {
+			return err
+		}
+		if !allowed {
+			return ErrSubscriptionPlanNotAccessible
+		}
 		if plan.PriceAmount < 0 {
 			return errors.New("套餐价格不能为负数")
 		}
-		if plan.AllowBalancePay != nil && !*plan.AllowBalancePay {
+		if plan.PriceAmount > 0 && plan.AllowBalancePay != nil && !*plan.AllowBalancePay {
 			return errors.New("该套餐不允许使用余额兑换")
 		}
 
@@ -838,6 +855,45 @@ func PurchaseSubscriptionWithBalance(userId int, planId int) error {
 	msg := fmt.Sprintf("使用余额购买订阅成功，套餐: %s，支付金额: %.2f，扣除额度: %d", logPlanTitle, logMoney, chargedQuota)
 	RecordLog(userId, LogTypeTopup, msg)
 	return nil
+}
+
+// DeleteSubscriptionPlan deletes a plan, its access-group relations, and all
+// subscriptions created from that plan.
+func DeleteSubscriptionPlan(planId int) ([]int, error) {
+	if planId <= 0 {
+		return nil, errors.New("invalid plan id")
+	}
+	deletedSubscriptionIds := make([]int, 0)
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		var plan SubscriptionPlan
+		if err := lockForUpdate(tx).Where("id = ?", planId).First(&plan).Error; err != nil {
+			return err
+		}
+		var subscriptions []UserSubscription
+		if err := tx.Where("plan_id = ?", planId).Find(&subscriptions).Error; err != nil {
+			return err
+		}
+		for i := range subscriptions {
+			if _, err := downgradeUserGroupForSubscriptionTx(tx, &subscriptions[i], common.GetTimestamp()); err != nil {
+				return err
+			}
+			deletedSubscriptionIds = append(deletedSubscriptionIds, subscriptions[i].Id)
+		}
+		if len(deletedSubscriptionIds) > 0 {
+			if err := tx.Where("id IN ?", deletedSubscriptionIds).Delete(&UserSubscription{}).Error; err != nil {
+				return err
+			}
+		}
+		if err := RemoveSubscriptionPlanAccessGroupsTx(tx, planId); err != nil {
+			return err
+		}
+		return tx.Delete(&plan).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	InvalidateSubscriptionPlanCache(planId)
+	return deletedSubscriptionIds, nil
 }
 
 // GetAllActiveUserSubscriptions returns all active subscriptions for a user,
@@ -1047,6 +1103,44 @@ func UserEnableSubscription(userId int, userSubscriptionId int) (*UserSubscripti
 		sub.UserDisabledReason = ""
 	}
 	return &sub, nil
+}
+
+// UserDeleteSubscription hard-deletes a subscription owned by the current user.
+func UserDeleteSubscription(userId int, userSubscriptionId int) (string, error) {
+	if userId <= 0 || userSubscriptionId <= 0 {
+		return "", errors.New("invalid subscription")
+	}
+	now := common.GetTimestamp()
+	cacheGroup := ""
+	downgradeGroup := ""
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		var sub UserSubscription
+		if err := lockForUpdate(tx).Where("id = ? AND user_id = ?", userSubscriptionId, userId).First(&sub).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("subscription not found")
+			}
+			return err
+		}
+		target, err := downgradeUserGroupForSubscriptionTx(tx, &sub, now)
+		if err != nil {
+			return err
+		}
+		if target != "" {
+			cacheGroup = target
+			downgradeGroup = target
+		}
+		return tx.Where("id = ? AND user_id = ?", userSubscriptionId, userId).Delete(&UserSubscription{}).Error
+	})
+	if err != nil {
+		return "", err
+	}
+	if cacheGroup != "" {
+		_ = UpdateUserGroupCache(userId, cacheGroup)
+	}
+	if downgradeGroup != "" {
+		return fmt.Sprintf("用户分组将回退到 %s", downgradeGroup), nil
+	}
+	return "", nil
 }
 
 // AdminInvalidateUserSubscription marks a user subscription as cancelled and ends it immediately.

@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next'
 
 import { SectionPageLayout } from '@/components/layout'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/design-system/tabs'
 
 import { SubscriptionsDialogs } from './components/subscriptions-dialogs'
 import { SubscriptionsPrimaryButtons } from './components/subscriptions-primary-buttons'
@@ -29,6 +30,7 @@ import {
   useSubscriptions,
 } from './components/subscriptions-provider'
 import { SubscriptionsTable } from './components/subscriptions-table'
+import { SubscriptionAccessGroups } from './components/subscription-access-groups'
 
 function SubscriptionsContent() {
   const { t } = useTranslation()
@@ -64,9 +66,18 @@ function SubscriptionsContent() {
                 </AlertDescription>
               </Alert>
             ) : null}
-            <div className='min-h-0 flex-1'>
-              <SubscriptionsTable />
-            </div>
+            <Tabs defaultValue='plans' className='min-h-0 flex-1'>
+              <TabsList>
+                <TabsTrigger value='plans'>{t('Plans')}</TabsTrigger>
+                <TabsTrigger value='access-groups'>{t('Subscription Visibility Permissions')}</TabsTrigger>
+              </TabsList>
+              <TabsContent value='plans' className='min-h-0'>
+                <SubscriptionsTable />
+              </TabsContent>
+              <TabsContent value='access-groups'>
+                <SubscriptionAccessGroups />
+              </TabsContent>
+            </Tabs>
           </div>
         </SectionPageLayout.Content>
       </SectionPageLayout>

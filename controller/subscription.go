@@ -39,8 +39,8 @@ func GetSubscriptionPlans(c *gin.Context) {
 		return
 	}
 
-	var plans []model.SubscriptionPlan
-	if err := model.DB.Where("enabled = ?", true).Order("sort_order desc, id desc").Find(&plans).Error; err != nil {
+	plans, err := model.GetAccessibleSubscriptionPlans(c.GetInt("id"))
+	if err != nil {
 		common.ApiError(c, err)
 		return
 	}
@@ -152,6 +152,22 @@ func EnableUserSubscription(c *gin.Context) {
 	})
 }
 
+func DeleteUserSubscription(c *gin.Context) {
+	userId := c.GetInt("id")
+	subscriptionId, err := strconv.Atoi(c.Param("id"))
+	if err != nil || subscriptionId <= 0 {
+		common.ApiErrorMsg(c, "invalid subscription ID")
+		return
+	}
+	msg, err := model.UserDeleteSubscription(userId, subscriptionId)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	recordUserSecurityAudit(c, userId, "subscription.user_delete", map[string]interface{}{"subscription_id": subscriptionId})
+	common.ApiSuccess(c, gin.H{"message": msg})
+}
+
 func SubscriptionRequestBalancePay(c *gin.Context) {
 	if !requirePaymentCompliance(c) {
 		return
@@ -179,6 +195,10 @@ func AdminListSubscriptionPlans(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	if err := model.PopulateSubscriptionPlanAccessGroups(plans); err != nil {
+		common.ApiError(c, err)
+		return
+	}
 	result := make([]SubscriptionPlanDTO, 0, len(plans))
 	for _, p := range plans {
 		p.NormalizeDefaults()
@@ -190,7 +210,8 @@ func AdminListSubscriptionPlans(c *gin.Context) {
 }
 
 type AdminUpsertSubscriptionPlanRequest struct {
-	Plan model.SubscriptionPlan `json:"plan"`
+	Plan                 model.SubscriptionPlan `json:"plan"`
+	SubscriptionGroupIds *[]int                 `json:"subscription_group_ids"`
 }
 
 func AdminCreateSubscriptionPlan(c *gin.Context) {
@@ -265,12 +286,27 @@ func AdminCreateSubscriptionPlan(c *gin.Context) {
 		return
 	}
 	req.Plan.SubQuotaLimits = normalizedLimits
-	err = model.DB.Create(&req.Plan).Error
+	err = model.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&req.Plan).Error; err != nil {
+			return err
+		}
+		groupIds := []int(nil)
+		if req.SubscriptionGroupIds != nil {
+			groupIds = *req.SubscriptionGroupIds
+		}
+		return model.ReplaceSubscriptionPlanAccessGroupsTx(tx, req.Plan.Id, groupIds)
+	})
 	if err != nil {
 		common.ApiError(c, err)
 		return
 	}
 	model.InvalidateSubscriptionPlanCache(req.Plan.Id)
+	var savedPlans []model.SubscriptionPlan
+	if err := model.DB.Where("id = ?", req.Plan.Id).Find(&savedPlans).Error; err == nil && len(savedPlans) == 1 {
+		if err := model.PopulateSubscriptionPlanAccessGroups(savedPlans); err == nil {
+			req.Plan = savedPlans[0]
+		}
+	}
 	common.ApiSuccess(c, req.Plan)
 }
 
@@ -378,6 +414,9 @@ func AdminUpdateSubscriptionPlan(c *gin.Context) {
 		if err := tx.Model(&model.SubscriptionPlan{}).Where("id = ?", id).Updates(updateMap).Error; err != nil {
 			return err
 		}
+		if req.SubscriptionGroupIds != nil {
+			return model.ReplaceSubscriptionPlanAccessGroupsTx(tx, id, *req.SubscriptionGroupIds)
+		}
 		return nil
 	})
 	if err != nil {
@@ -413,6 +452,24 @@ func AdminUpdateSubscriptionPlanStatus(c *gin.Context) {
 	}
 	model.InvalidateSubscriptionPlanCache(id)
 	common.ApiSuccess(c, nil)
+}
+
+func AdminDeleteSubscriptionPlan(c *gin.Context) {
+	if !requirePaymentCompliance(c) {
+		return
+	}
+	planId, _ := strconv.Atoi(c.Param("id"))
+	if planId <= 0 {
+		common.ApiErrorMsg(c, "无效的ID")
+		return
+	}
+	deletedSubscriptionIds, err := model.DeleteSubscriptionPlan(planId)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	recordManageAudit(c, "subscription_plan.delete", map[string]interface{}{"plan_id": planId, "deleted_subscription_ids": deletedSubscriptionIds})
+	common.ApiSuccess(c, gin.H{"deleted_subscription_ids": deletedSubscriptionIds})
 }
 
 type AdminBindSubscriptionRequest struct {

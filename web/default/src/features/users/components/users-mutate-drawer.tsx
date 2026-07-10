@@ -74,12 +74,17 @@ import { formatQuota, parseQuotaFromDollars } from '@/lib/format'
 import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
 
+import { getSubscriptionAccessGroups } from '@/features/subscriptions/api'
+import type { SubscriptionAccessGroup } from '@/features/subscriptions/types'
+
 import {
   createUser,
   updateUser,
   getUser,
   getGroups,
   getPermissionCatalog,
+  getUserSubscriptionAccessGroups,
+  replaceUserSubscriptionAccessGroups,
 } from '../api'
 import { BINDING_FIELDS, ERROR_MESSAGES, SUCCESS_MESSAGES } from '../constants'
 import {
@@ -110,6 +115,8 @@ export function UsersMutateDrawer({
   const currentUser = useAuthStore((s) => s.auth.user)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [quotaDialogOpen, setQuotaDialogOpen] = useState(false)
+  const [subscriptionGroups, setSubscriptionGroups] = useState<SubscriptionAccessGroup[]>([])
+  const [subscriptionGroupIds, setSubscriptionGroupIds] = useState<number[]>([])
 
   // Fetch groups
   const { data: groupsData } = useQuery({
@@ -140,10 +147,18 @@ export function UsersMutateDrawer({
         if (result.success && result.data) {
           form.reset(transformUserToFormDefaults(result.data))
         }
-      })
+      }).catch(() => {})
+      getSubscriptionAccessGroups().then((result) => {
+        if (result.success) setSubscriptionGroups(result.data || [])
+      }).catch(() => {})
+      getUserSubscriptionAccessGroups(currentRow.id).then((result) => {
+        if (result.success) setSubscriptionGroupIds((result.data || []).map((group) => group.id))
+      }).catch(() => {})
     } else if (open && !isUpdate) {
       // For create, reset to defaults
       form.reset(USER_FORM_DEFAULT_VALUES)
+      setSubscriptionGroups([])
+      setSubscriptionGroupIds([])
     }
   }, [open, isUpdate, currentRow, form])
 
@@ -180,6 +195,16 @@ export function UsersMutateDrawer({
         : await createUser(payload)
 
       if (result.success) {
+        if (isUpdate && currentRow) {
+          const groupsResult = await replaceUserSubscriptionAccessGroups(
+            currentRow.id,
+            subscriptionGroupIds
+          )
+          if (!groupsResult.success) {
+            toast.error(groupsResult.message || t(ERROR_MESSAGES.UPDATE_FAILED))
+            return
+          }
+        }
         toast.success(
           isUpdate
             ? t(SUCCESS_MESSAGES.USER_UPDATED)
@@ -303,6 +328,7 @@ export function UsersMutateDrawer({
                       </FormItem>
                     )}
                   />
+
                 )}
 
                 <FormField
@@ -386,6 +412,39 @@ export function UsersMutateDrawer({
                       </FormItem>
                     )}
                   />
+
+                  <div className='space-y-2'>
+                    <FormLabel>{t('Subscription Visibility Permissions')}</FormLabel>
+                    <div className='space-y-2 rounded-md border p-3'>
+                      {subscriptionGroups
+                        .filter((group) => !group.is_default)
+                        .map((group) => (
+                          <label
+                            key={group.id}
+                            className='flex items-center gap-3 text-sm'
+                          >
+                            <Checkbox
+                              checked={subscriptionGroupIds.includes(group.id)}
+                              disabled={
+                                !group.enabled &&
+                                !subscriptionGroupIds.includes(group.id)
+                              }
+                              onCheckedChange={(checked) => {
+                                setSubscriptionGroupIds((ids) =>
+                                  checked === true
+                                    ? [...ids, group.id]
+                                    : ids.filter((id) => id !== group.id)
+                                )
+                              }}
+                            />
+                            <span>
+                              {group.name}
+                              {!group.enabled ? ` (${t('Disabled')})` : ''}
+                            </span>
+                          </label>
+                        ))}
+                    </div>
+                  </div>
 
                   <FormField
                     control={form.control}

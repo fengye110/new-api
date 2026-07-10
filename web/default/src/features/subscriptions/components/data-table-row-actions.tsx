@@ -17,7 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import type { Row } from '@tanstack/react-table'
-import { Pencil, Power, PowerOff, RotateCcw } from 'lucide-react'
+import { Pencil, Power, PowerOff, RotateCcw, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/design-system/button'
@@ -28,6 +29,7 @@ import {
 } from '@/components/ui/tooltip'
 
 import type { PlanRecord } from '../types'
+import { deletePlan } from '../api'
 import { useSubscriptions } from './subscriptions-provider'
 
 interface DataTableRowActionsProps {
@@ -36,7 +38,7 @@ interface DataTableRowActionsProps {
 
 export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const { t } = useTranslation()
-  const { setOpen, setCurrentRow, complianceConfirmed } = useSubscriptions()
+  const { setOpen, setCurrentRow, complianceConfirmed, triggerRefresh } = useSubscriptions()
   const isEnabled = row.original.plan.enabled
   const toggleLabel = isEnabled ? t('Disable') : t('Enable')
 
@@ -53,6 +55,20 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const handleResetSubscriptions = () => {
     setCurrentRow(row.original)
     setOpen('reset-subscriptions')
+  }
+
+  const handleDelete = async () => {
+    if (!window.confirm(t('Delete subscription plan "{{name}}"?', { name: row.original.plan.title }))) return
+    try {
+      const res = await deletePlan(row.original.plan.id)
+      if (!res.success) {
+        toast.error(res.message || t('Delete failed'))
+        return
+      }
+      triggerRefresh()
+    } catch {
+      toast.error(t('Request failed'))
+    }
   }
 
   return (
@@ -111,6 +127,24 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           {isEnabled ? <PowerOff /> : <Power />}
         </TooltipTrigger>
         <TooltipContent>{toggleLabel}</TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant='ghost'
+              size='icon-sm'
+              disabled={!complianceConfirmed}
+              onClick={() => void handleDelete()}
+              aria-label={t('Delete')}
+              className='text-destructive hover:text-destructive'
+            />
+          }
+        >
+          <Trash2 />
+        </TooltipTrigger>
+        <TooltipContent>{t('Delete')}</TooltipContent>
       </Tooltip>
     </div>
   )

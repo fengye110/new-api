@@ -29,16 +29,6 @@ import { useForm, type Resolver } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { Button } from '@/components/design-system/button'
-import { Input } from '@/components/design-system/input'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/design-system/select'
 import {
   SideDrawerSection,
   sideDrawerContentClassName,
@@ -47,6 +37,8 @@ import {
   sideDrawerHeaderClassName,
   sideDrawerSwitchItemClassName,
 } from '@/components/drawer-layout'
+import { Button } from '@/components/design-system/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Form,
   FormControl,
@@ -56,6 +48,15 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import { Input } from '@/components/design-system/input'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/design-system/select'
 import {
   Sheet,
   SheetClose,
@@ -72,6 +73,7 @@ import {
   createPlan,
   updatePlan,
   getGroups,
+  getSubscriptionAccessGroups,
   createWaffoPancakeSubscriptionProduct,
   listWaffoPancakeSubscriptionProductOptions,
 } from '../api'
@@ -83,7 +85,7 @@ import {
   formValuesToPlanPayload,
   type PlanFormValues,
 } from '../lib'
-import type { PlanRecord } from '../types'
+import type { PlanRecord, SubscriptionAccessGroup } from '../types'
 import { SubQuotaLimitsField } from './sub-quota-limits-field'
 import { useSubscriptions } from './subscriptions-provider'
 
@@ -106,6 +108,7 @@ export function SubscriptionsMutateDrawer({
   const currencyLabel = getCurrencyLabel()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [groupOptions, setGroupOptions] = useState<string[]>([])
+  const [subscriptionGroups, setSubscriptionGroups] = useState<SubscriptionAccessGroup[]>([])
   const [creatingPancakeProduct, setCreatingPancakeProduct] = useState(false)
   const [pancakeProducts, setPancakeProducts] = useState<
     { id: string; name: string; status: string }[]
@@ -129,6 +132,18 @@ export function SubscriptionsMutateDrawer({
           if (res.success) setGroupOptions(res.data || [])
         })
         .catch(() => {})
+      getSubscriptionAccessGroups()
+        .then((res) => {
+          if (res.success) {
+            const groups = res.data || []
+            setSubscriptionGroups(groups)
+            if (!currentRow?.plan?.id) {
+              const defaultGroup = groups.find((group) => group.is_default)
+              if (defaultGroup) form.setValue('subscription_group_ids', [defaultGroup.id])
+            }
+          }
+        })
+        .catch(() => setSubscriptionGroups([]))
       // Best-effort — empty list still lets the operator use "+ Create".
       listWaffoPancakeSubscriptionProductOptions()
         .then((res) => {
@@ -575,6 +590,51 @@ export function SubscriptionsMutateDrawer({
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name='subscription_group_ids'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Visibility Scope')}</FormLabel>
+                    <FormDescription>
+                      {t('Only members of selected permissions can view and purchase this plan.')}
+                    </FormDescription>
+                    <div className='space-y-2 rounded-md border p-3'>
+                      {subscriptionGroups.map((group) => {
+                        const checked = field.value.includes(group.id)
+                        return (
+                          <label key={group.id} className='flex items-center gap-3 text-sm'>
+                            <Checkbox
+                              checked={checked}
+                              disabled={!group.enabled && !checked}
+                              onCheckedChange={(value) => {
+                                if (value !== true) {
+                                  field.onChange(field.value.filter((id) => id !== group.id))
+                                  return
+                                }
+                                field.onChange(
+                                  group.is_default
+                                    ? [group.id]
+                                    : [...field.value.filter((id) => {
+                                        const selected = subscriptionGroups.find((item) => item.id === id)
+                                        return !selected?.is_default
+                                      }), group.id]
+                                )
+                              }}
+                            />
+                            <span>
+                              {group.name} {group.is_default ? `(${t('All users')})` : ''}
+                              {!group.enabled ? ` (${t('Disabled')})` : ''}
+                            </span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </SideDrawerSection>
 
             {/* Duration Settings */}

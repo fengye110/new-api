@@ -291,6 +291,9 @@ func migrateDB() error {
 		&SubscriptionOrder{},
 		&UserSubscription{},
 		&SubscriptionPreConsumeRecord{},
+		&SubscriptionAccessGroup{},
+		&UserSubscriptionAccessGroup{},
+		&SubscriptionPlanAccessGroup{},
 		&CustomOAuthProvider{},
 		&UserOAuthBinding{},
 		&PerfMetric{},
@@ -312,7 +315,7 @@ func migrateDB() error {
 			return err
 		}
 	}
-	return nil
+	return SeedDefaultSubscriptionAccessGroup()
 }
 
 func migrateDBFast() error {
@@ -345,6 +348,9 @@ func migrateDBFast() error {
 		{&SubscriptionOrder{}, "SubscriptionOrder"},
 		{&UserSubscription{}, "UserSubscription"},
 		{&SubscriptionPreConsumeRecord{}, "SubscriptionPreConsumeRecord"},
+		{&SubscriptionAccessGroup{}, "SubscriptionAccessGroup"},
+		{&UserSubscriptionAccessGroup{}, "UserSubscriptionAccessGroup"},
+		{&SubscriptionPlanAccessGroup{}, "SubscriptionPlanAccessGroup"},
 		{&CustomOAuthProvider{}, "CustomOAuthProvider"},
 		{&UserOAuthBinding{}, "UserOAuthBinding"},
 		{&PerfMetric{}, "PerfMetric"},
@@ -383,6 +389,9 @@ func migrateDBFast() error {
 		if err := DB.AutoMigrate(&SubscriptionPlan{}); err != nil {
 			return err
 		}
+	}
+	if err := SeedDefaultSubscriptionAccessGroup(); err != nil {
+		return err
 	}
 	common.SysLog("database migrated")
 	return nil
