@@ -57,7 +57,7 @@ export async function searchUsers(
     group = '',
     role = '',
     status = '',
-    subscription_group_id = '',
+    subscription_group_ids = [],
     p = 1,
     page_size = 20,
   } = params
@@ -66,8 +66,8 @@ export async function searchUsers(
   queryParams.set('group', group)
   if (role) queryParams.set('role', role)
   if (status) queryParams.set('status', status)
-  if (subscription_group_id) {
-    queryParams.set('subscription_group_id', subscription_group_id)
+  for (const id of subscription_group_ids) {
+    if (id) queryParams.append('subscription_group_id', id)
   }
   queryParams.set('p', String(p))
   queryParams.set('page_size', String(page_size))

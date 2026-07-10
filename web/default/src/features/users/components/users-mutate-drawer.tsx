@@ -379,33 +379,32 @@ export function UsersMutateDrawer({
                 <div className='space-y-2'>
                   <FormLabel>{t('Subscription Visibility Permissions')}</FormLabel>
                   <div className='space-y-2 rounded-md border p-3'>
-                    {subscriptionGroups
-                      .filter((group) => !group.is_default)
-                      .map((group) => (
-                        <label
-                          key={group.id}
-                          className='flex items-center gap-3 text-sm'
-                        >
-                          <Checkbox
-                            checked={subscriptionGroupIds.includes(group.id)}
-                            disabled={
-                              !group.enabled &&
-                              !subscriptionGroupIds.includes(group.id)
-                            }
-                            onCheckedChange={(checked) => {
-                              setSubscriptionGroupIds((ids) =>
-                                checked === true
-                                  ? [...ids, group.id]
-                                  : ids.filter((id) => id !== group.id)
-                              )
-                            }}
-                          />
-                          <span>
-                            {group.name}
-                            {!group.enabled ? ` (${t('Disabled')})` : ''}
-                          </span>
-                        </label>
-                      ))}
+                    {subscriptionGroups.map((group) => (
+                      <label
+                        key={group.id}
+                        className='flex items-center gap-3 text-sm'
+                      >
+                        <Checkbox
+                          checked={subscriptionGroupIds.includes(group.id)}
+                          disabled={
+                            !group.enabled &&
+                            !subscriptionGroupIds.includes(group.id)
+                          }
+                          onCheckedChange={(checked) => {
+                            setSubscriptionGroupIds((ids) =>
+                              checked === true
+                                ? [...ids, group.id]
+                                : ids.filter((id) => id !== group.id)
+                            )
+                          }}
+                        />
+                        <span>
+                          {group.name}{' '}
+                          {group.is_default ? `(${t('All users')})` : ''}
+                          {!group.enabled ? ` (${t('Disabled')})` : ''}
+                        </span>
+                      </label>
+                    ))}
                   </div>
                 </div>
               </SideDrawerSection>

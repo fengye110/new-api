@@ -57,8 +57,10 @@ export function UsersTable() {
     staleTime: 5 * 60 * 1000,
   })
   const subscriptionGroupOptions = (subscriptionGroupsData?.data || [])
-    .filter((group) => !group.is_default)
-    .map((group) => ({ value: String(group.id), label: group.name }))
+    .map((group) => ({
+      value: String(group.id),
+      label: group.is_default ? `${group.name} (${t('All users')})` : group.name,
+    }))
   const columns = useUsersColumns(subscriptionGroupsData?.data || [])
 
   const {
@@ -138,7 +140,7 @@ export function UsersTable() {
               status: statusFilter[0] ?? '',
               role: roleFilter[0] ?? '',
               group: groupFilter,
-              subscription_group_id: subscriptionGroupFilter[0] ?? '',
+              subscription_group_ids: subscriptionGroupFilter,
             })
           : await getUsers(params)
 
@@ -220,7 +222,6 @@ export function UsersTable() {
             columnId: 'subscription_group',
             title: t('Subscription Visibility Permissions'),
             options: subscriptionGroupOptions,
-            singleSelect: true,
           },
         ],
       }}

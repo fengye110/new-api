@@ -350,7 +350,7 @@ func GetAllUsers(pageInfo *common.PageInfo) (users []*User, total int64, err err
 	return users, total, nil
 }
 
-func SearchUsers(keyword string, group string, subscriptionGroupId *int, role *int, status *int, startIdx int, num int) ([]*User, int64, error) {
+func SearchUsers(keyword string, group string, subscriptionGroupIds []int, role *int, status *int, startIdx int, num int) ([]*User, int64, error) {
 	var users []*User
 	var total int64
 	var err error
@@ -385,14 +385,23 @@ func SearchUsers(keyword string, group string, subscriptionGroupId *int, role *i
 	if group != "" {
 		query = query.Where(commonGroupCol+" = ?", group)
 	}
-	if subscriptionGroupId != nil {
-		var subscriptionGroup SubscriptionAccessGroup
-		if err := tx.First(&subscriptionGroup, *subscriptionGroupId).Error; err != nil {
+	if len(subscriptionGroupIds) > 0 {
+		var groups []SubscriptionAccessGroup
+		if err := tx.Where("id IN ?", subscriptionGroupIds).Find(&groups).Error; err != nil {
 			tx.Rollback()
 			return nil, 0, err
 		}
-		if !subscriptionGroup.IsDefault {
-			query = query.Joins("JOIN user_subscription_access_groups AS ug ON ug.user_id = users.id").Where("ug.group_id = ?", *subscriptionGroupId)
+		hasDefault := false
+		nonDefaultIds := make([]int, 0, len(groups))
+		for _, g := range groups {
+			if g.IsDefault {
+				hasDefault = true
+			} else {
+				nonDefaultIds = append(nonDefaultIds, g.Id)
+			}
+		}
+		if !hasDefault && len(nonDefaultIds) > 0 {
+			query = query.Joins("JOIN user_subscription_access_groups AS ug ON ug.user_id = users.id").Where("ug.group_id IN ?", nonDefaultIds)
 		}
 	}
 	if role != nil {

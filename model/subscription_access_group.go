@@ -227,14 +227,8 @@ func normalizeSubscriptionAccessGroupIdsTx(tx *gorm.DB, ids []int, defaultWhenEm
 	if len(normalized) > 64 {
 		return nil, errors.New("订阅组数量不能超过64个")
 	}
-	groups, err := getEnabledSubscriptionAccessGroupsTx(tx, normalized)
-	if err != nil {
+	if _, err := getEnabledSubscriptionAccessGroupsTx(tx, normalized); err != nil {
 		return nil, err
-	}
-	for _, group := range groups {
-		if group.IsDefault {
-			return []int{group.Id}, nil
-		}
 	}
 	if len(normalized) > 0 || !defaultWhenEmpty {
 		return normalized, nil

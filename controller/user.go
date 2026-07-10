@@ -318,10 +318,13 @@ func GetAllUsers(c *gin.Context) {
 func SearchUsers(c *gin.Context) {
 	keyword := c.Query("keyword")
 	group := c.Query("group")
-	var subscriptionGroupId *int
-	if groupIdStr := c.Query("subscription_group_id"); groupIdStr != "" {
+	var subscriptionGroupIds []int
+	for _, groupIdStr := range c.QueryArray("subscription_group_id") {
+		if groupIdStr == "" {
+			continue
+		}
 		if parsed, err := strconv.Atoi(groupIdStr); err == nil && parsed > 0 {
-			subscriptionGroupId = &parsed
+			subscriptionGroupIds = append(subscriptionGroupIds, parsed)
 		}
 	}
 	var role *int
@@ -337,7 +340,7 @@ func SearchUsers(c *gin.Context) {
 		}
 	}
 	pageInfo := common.GetPageQuery(c)
-	users, total, err := model.SearchUsers(keyword, group, subscriptionGroupId, role, status, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+	users, total, err := model.SearchUsers(keyword, group, subscriptionGroupIds, role, status, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
 	if err != nil {
 		common.ApiError(c, err)
 		return

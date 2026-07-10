@@ -100,7 +100,7 @@ export interface SearchUsersParams {
   group?: string
   role?: string
   status?: string
-  subscription_group_id?: string
+  subscription_group_ids?: string[]
   p?: number
   page_size?: number
 }

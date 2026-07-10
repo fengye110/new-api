@@ -613,14 +613,7 @@ export function SubscriptionsMutateDrawer({
                                   field.onChange(field.value.filter((id) => id !== group.id))
                                   return
                                 }
-                                field.onChange(
-                                  group.is_default
-                                    ? [group.id]
-                                    : [...field.value.filter((id) => {
-                                        const selected = subscriptionGroups.find((item) => item.id === id)
-                                        return !selected?.is_default
-                                      }), group.id]
-                                )
+                                field.onChange([...field.value, group.id])
                               }}
                             />
                             <span>
