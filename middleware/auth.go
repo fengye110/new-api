@@ -184,6 +184,27 @@ func UserAuth() func(c *gin.Context) {
 	}
 }
 
+// RefreshUserGroupContext loads the current group from the database so group
+// authorization does not depend on the group snapshot stored in a session.
+func RefreshUserGroupContext() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID := c.GetInt("id")
+		userGroup, err := model.GetUserGroup(userID, false)
+		if err != nil {
+			common.SysLog(fmt.Sprintf("GetUserGroup error for user %d: %v", userID, err))
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": common.TranslateMessage(c, i18n.MsgDatabaseError),
+			})
+			c.Abort()
+			return
+		}
+		c.Set("group", userGroup)
+		c.Set("user_group", userGroup)
+		c.Next()
+	}
+}
+
 func AdminAuth() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		authHelper(c, common.RoleAdminUser)
