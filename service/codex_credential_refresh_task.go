@@ -101,7 +101,7 @@ func runCodexCredentialAutoRefreshOnce() {
 				continue
 			}
 
-			oauthKey, err := parseCodexOAuthKey(rawKey)
+			oauthKey, err := parseCodexOAuthKey(rawKey, ch.Id)
 			if err != nil {
 				continue
 			}

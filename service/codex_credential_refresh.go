@@ -28,12 +28,16 @@ type CodexOAuthKey struct {
 	Expired     string `json:"expired,omitempty"`
 }
 
-func parseCodexOAuthKey(raw string) (*CodexOAuthKey, error) {
+func parseCodexOAuthKey(raw string, channelID int) (*CodexOAuthKey, error) {
 	if strings.TrimSpace(raw) == "" {
 		return nil, errors.New("codex channel: empty oauth key")
 	}
+	plain, err := common.DecryptCodexOAuthKeyForChannel(raw, channelID)
+	if err != nil {
+		return nil, err
+	}
 	var key CodexOAuthKey
-	if err := common.Unmarshal([]byte(raw), &key); err != nil {
+	if err := common.Unmarshal([]byte(plain), &key); err != nil {
 		return nil, errors.New("codex channel: invalid oauth key json")
 	}
 	return &key, nil
@@ -51,7 +55,7 @@ func RefreshCodexChannelCredential(ctx context.Context, channelID int, opts Code
 		return nil, nil, fmt.Errorf("channel type is not Codex")
 	}
 
-	oauthKey, err := parseCodexOAuthKey(strings.TrimSpace(ch.Key))
+	oauthKey, err := parseCodexOAuthKey(strings.TrimSpace(ch.Key), ch.Id)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -91,7 +95,14 @@ func RefreshCodexChannelCredential(ctx context.Context, channelID int, opts Code
 		return nil, nil, err
 	}
 
-	if err := model.DB.Model(&model.Channel{}).Where("id = ?", ch.Id).Update("key", string(encoded)).Error; err != nil {
+	updatedKey := string(encoded)
+	if common.IsEncryptedCodexOAuthKey(ch.Key) {
+		updatedKey, err = common.EncryptCodexOAuthKeyForChannel(updatedKey, ch.Id)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	if err := model.DB.Model(&model.Channel{}).Where("id = ?", ch.Id).Update("key", updatedKey).Error; err != nil {
 		return nil, nil, err
 	}
 

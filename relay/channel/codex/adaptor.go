@@ -153,7 +153,7 @@ func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Header, info *rel
 		return errors.New("codex channel: key must be a JSON object")
 	}
 
-	oauthKey, err := ParseOAuthKey(key)
+	oauthKey, err := ParseOAuthKeyForChannel(key, info.ChannelId)
 	if err != nil {
 		return err
 	}
