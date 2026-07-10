@@ -15,6 +15,15 @@ This is an AI API gateway/proxy built with Go. It aggregates 40+ upstream AI pro
 - **Auth**: JWT, WebAuthn/Passkeys, OAuth (GitHub, Discord, OIDC, etc.)
 - **Frontend package manager**: Bun (preferred over npm/yarn/pnpm)
 
+## 编译
+
+- 使用 ./build-and-run.sh  编译和执行, 如果遇到问题,直接修改
+
+
+## 账号
+
+- root 账号 yaoj 密码 11111111
+
 ## Architecture
 
 Layered architecture: Router -> Controller -> Service -> Model

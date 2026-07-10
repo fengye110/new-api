@@ -130,9 +130,11 @@ import {
   getAllModels,
   getChannel,
   getChannelKey,
+  getCodexHeadlessLogin,
   getGroups,
   getPrefillGroups,
   refreshCodexCredential,
+  startCodexHeadlessLogin,
 } from '../../api'
 import {
   ADD_MODE_OPTIONS,
@@ -152,6 +154,7 @@ import {
   channelsQueryKeys,
   getAdvancedCustomStats,
   transformChannelToFormDefaults,
+  transformFormDataToCreatePayload,
   type ChannelFormValues,
   deduplicateKeys,
   getChannelTypeIcon,
@@ -603,6 +606,14 @@ export function ChannelMutateDrawer({
   const [channelKey, setChannelKey] = useState<string | null>(null)
   const [isChannelKeyLoading, setIsChannelKeyLoading] = useState(false)
   const [isCodexCredentialRefreshing, setIsCodexCredentialRefreshing] =
+    useState(false)
+  const [codexHeadlessLogin, setCodexHeadlessLogin] = useState<{
+    id: string
+    verificationUri: string
+    userCode: string
+    interval: number
+  } | null>(null)
+  const [isCodexHeadlessLoginStarting, setIsCodexHeadlessLoginStarting] =
     useState(false)
   const initialModelsRef = useRef<string[]>([])
   const initialModelMappingRef = useRef<string>('')
@@ -1517,6 +1528,64 @@ export function ChannelMutateDrawer({
     onOpenChange(false)
     setOpen(null)
   }, [channelId, queryClient, onOpenChange, setOpen])
+
+  const handleStartCodexHeadlessLogin = useCallback(async () => {
+    const valid = await form.trigger()
+    if (!valid) {
+      toast.error(
+        t('Please complete the required channel fields before starting ChatGPT authorization')
+      )
+      setActiveEditorSectionId(CHANNEL_EDITOR_SECTION_IDS.identity)
+      return
+    }
+
+    setIsCodexHeadlessLoginStarting(true)
+    try {
+      const response = await startCodexHeadlessLogin(
+        transformFormDataToCreatePayload(form.getValues())
+      )
+      const login = response.data
+      if (!response.success || !login?.login_id || !login.verification_uri || !login.user_code) {
+        throw new Error(response.message || t('Failed to start ChatGPT authorization'))
+      }
+      setCodexHeadlessLogin({
+        id: login.login_id,
+        verificationUri: login.verification_uri,
+        userCode: login.user_code,
+        interval: Math.max(login.interval || 5, 1),
+      })
+      window.open(login.verification_uri, '_blank', 'noopener,noreferrer')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('Failed to start ChatGPT authorization'))
+    } finally {
+      setIsCodexHeadlessLoginStarting(false)
+    }
+  }, [form, t])
+
+  useEffect(() => {
+    if (!codexHeadlessLogin) return
+
+    const timer = window.setInterval(async () => {
+      try {
+        const response = await getCodexHeadlessLogin(codexHeadlessLogin.id)
+        const login = response.data
+        if (!response.success || login?.status === 'failed') {
+          throw new Error(login?.message || response.message || t('ChatGPT authorization failed'))
+        }
+        if (login?.status === 'success') {
+          toast.success(t('ChatGPT authorization completed'))
+          setCodexHeadlessLogin(null)
+          handleSuccess()
+        }
+      } catch (error) {
+        window.clearInterval(timer)
+        setCodexHeadlessLogin(null)
+        toast.error(error instanceof Error ? error.message : t('ChatGPT authorization failed'))
+      }
+    }, codexHeadlessLogin.interval * 1000)
+
+    return () => window.clearInterval(timer)
+  }, [codexHeadlessLogin, handleSuccess, t])
 
   // Show missing models confirmation dialog
   const confirmMissingModelMappings = useCallback(
@@ -3045,6 +3114,26 @@ export function ChannelMutateDrawer({
                                       )}
                                     </div>
                                     <div className='flex flex-wrap items-center gap-2'>
+                                      {!isEditing && (
+                                        <Button
+                                          type='button'
+                                          variant='outline'
+                                          size='sm'
+                                          onClick={handleStartCodexHeadlessLogin}
+                                          disabled={
+                                            !canEditSensitive ||
+                                            isCodexHeadlessLoginStarting ||
+                                            Boolean(codexHeadlessLogin)
+                                          }
+                                        >
+                                          {isCodexHeadlessLoginStarting ? (
+                                            <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                                          ) : (
+                                            <KeyRound className='mr-2 h-4 w-4' />
+                                          )}
+                                          {t('ChatGPT Pro/Plus (headless)')}
+                                        </Button>
+                                      )}
                                       {isEditing && channelId && (
                                         <Button
                                           type='button'
@@ -3068,6 +3157,29 @@ export function ChannelMutateDrawer({
                                       )}
                                     </div>
                                   </div>
+                                  {codexHeadlessLogin && (
+                                    <Alert>
+                                      <AlertDescription className='space-y-2 text-sm'>
+                                        <p>{t('Open the authorization page and enter this code:')}</p>
+                                        <div className='flex flex-wrap items-center gap-2'>
+                                          <a
+                                            href={codexHeadlessLogin.verificationUri}
+                                            target='_blank'
+                                            rel='noreferrer'
+                                            className='text-primary underline underline-offset-4'
+                                          >
+                                            {codexHeadlessLogin.verificationUri}
+                                          </a>
+                                          <code className='rounded bg-muted px-2 py-1 font-semibold'>
+                                            {codexHeadlessLogin.userCode}
+                                          </code>
+                                        </div>
+                                        <p className='text-muted-foreground'>
+                                          {t('Waiting for ChatGPT authorization...')}
+                                        </p>
+                                      </AlertDescription>
+                                    </Alert>
+                                  )}
                                   <Alert className='border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-50'>
                                     <AlertDescription>
                                       {t(

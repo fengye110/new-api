@@ -73,6 +73,21 @@ export type CodexCredentialRefreshResponse = {
   }
 }
 
+export type CodexHeadlessLoginResponse = {
+  success: boolean
+  message?: string
+  data?: {
+    login_id?: string
+    status?: 'pending' | 'success' | 'failed'
+    verification_uri?: string
+    user_code?: string
+    interval?: number
+    expires_in?: number
+    channel_id?: number
+    message?: string
+  }
+}
+
 // ============================================================================
 // Base Channel CRUD Operations
 // ============================================================================
@@ -322,6 +337,27 @@ export async function refreshCodexCredential(
     `/api/channel/${channelId}/codex/refresh`,
     {},
     channelActionConfig()
+  )
+  return res.data
+}
+
+export async function startCodexHeadlessLogin(
+  payload: AddChannelRequest
+): Promise<CodexHeadlessLoginResponse> {
+  const res = await api.post(
+    '/api/channel/codex/login/start',
+    payload,
+    channelActionConfig()
+  )
+  return res.data
+}
+
+export async function getCodexHeadlessLogin(
+  loginId: string
+): Promise<CodexHeadlessLoginResponse> {
+  const res = await api.get(
+    `/api/channel/codex/login/${loginId}`,
+    channelActionConfig({ disableDuplicate: true })
   )
   return res.data
 }
