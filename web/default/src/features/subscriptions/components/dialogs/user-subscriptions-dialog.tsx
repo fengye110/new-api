@@ -325,9 +325,21 @@ export function UserSubscriptionsDialog(props: Props) {
                 {
                   id: 'status',
                   header: t('Status'),
-                  cell: (record) => (
-                    <SubscriptionStatusBadge sub={record.subscription} t={t} />
-                  ),
+                  cell: (record) => {
+                    const sub = record.subscription
+                    return (
+                      <div className='flex flex-wrap gap-1'>
+                        <SubscriptionStatusBadge sub={sub} t={t} />
+                        {sub.user_disabled && (
+                          <StatusBadge
+                            label={t('Disabled for billing')}
+                            variant='neutral'
+                            copyable={false}
+                          />
+                        )}
+                      </div>
+                    )
+                  },
                 },
                 {
                   id: 'validity',

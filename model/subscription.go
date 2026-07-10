@@ -279,6 +279,11 @@ type UserSubscription struct {
 	// Whether wallet fallback is allowed after this subscription's quota is exhausted (snapshot from plan)
 	AllowWalletOverflow bool `json:"allow_wallet_overflow"`
 
+	// UserDisabled keeps a still-valid subscription out of new billing requests.
+	UserDisabled       bool   `json:"user_disabled" gorm:"not null;default:false"`
+	UserDisabledAt     int64  `json:"user_disabled_at" gorm:"type:bigint;not null;default:0"`
+	UserDisabledReason string `json:"user_disabled_reason" gorm:"type:varchar(255);default:''"`
+
 	// Purchase-time snapshot of the plan's sub-quota window limits JSON.
 	SubQuotaLimits string `json:"sub_quota_limits" gorm:"type:text"`
 
@@ -843,7 +848,7 @@ func GetAllActiveUserSubscriptions(userId int) ([]SubscriptionSummary, error) {
 	}
 	now := common.GetTimestamp()
 	var subs []UserSubscription
-	err := DB.Where("user_id = ? AND status = ? AND end_time > ?", userId, "active", now).
+	err := DB.Where("user_id = ? AND status = ? AND end_time > ? AND user_disabled = ?", userId, "active", now, false).
 		Order("end_time desc, id desc").
 		Find(&subs).Error
 	if err != nil {
@@ -861,7 +866,7 @@ func HasActiveUserSubscription(userId int) (bool, error) {
 	now := common.GetTimestamp()
 	var count int64
 	if err := DB.Model(&UserSubscription{}).
-		Where("user_id = ? AND status = ? AND end_time > ?", userId, "active", now).
+		Where("user_id = ? AND status = ? AND end_time > ? AND user_disabled = ?", userId, "active", now, false).
 		Count(&count).Error; err != nil {
 		return false, err
 	}
@@ -878,8 +883,8 @@ func UserActiveSubscriptionsAllowWalletOverflow(userId int) (bool, error) {
 	now := common.GetTimestamp()
 	var strictCount int64
 	if err := DB.Model(&UserSubscription{}).
-		Where("user_id = ? AND status = ? AND end_time > ? AND allow_wallet_overflow = ?",
-			userId, "active", now, false).
+		Where("user_id = ? AND status = ? AND end_time > ? AND user_disabled = ? AND allow_wallet_overflow = ?",
+			userId, "active", now, false, false).
 		Count(&strictCount).Error; err != nil {
 		return false, err
 	}
@@ -959,6 +964,89 @@ func buildActiveSubscriptionSummaries(subs []UserSubscription, now int64) []Subs
 		result = append(result, summary)
 	}
 	return result
+}
+
+func UserDisableSubscription(userId int, userSubscriptionId int, reason string) (*UserSubscription, error) {
+	if userId <= 0 || userSubscriptionId <= 0 {
+		return nil, errors.New("invalid subscription")
+	}
+	now := common.GetTimestamp()
+	reasonRunes := []rune(strings.TrimSpace(reason))
+	if len(reasonRunes) > 255 {
+		reasonRunes = reasonRunes[:255]
+	}
+	reason = string(reasonRunes)
+
+	var sub UserSubscription
+	changed := false
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("id = ? AND user_id = ?", userSubscriptionId, userId).First(&sub).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("subscription not found")
+			}
+			return err
+		}
+		if sub.Status != "active" || sub.EndTime <= now {
+			return errors.New("only active subscriptions can be disabled")
+		}
+		if sub.UserDisabled {
+			return nil
+		}
+		changed = true
+		return tx.Model(&sub).Updates(map[string]interface{}{
+			"user_disabled":        true,
+			"user_disabled_at":     now,
+			"user_disabled_reason": reason,
+		}).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	if changed {
+		sub.UserDisabled = true
+		sub.UserDisabledAt = now
+		sub.UserDisabledReason = reason
+	}
+	return &sub, nil
+}
+
+func UserEnableSubscription(userId int, userSubscriptionId int) (*UserSubscription, error) {
+	if userId <= 0 || userSubscriptionId <= 0 {
+		return nil, errors.New("invalid subscription")
+	}
+	now := common.GetTimestamp()
+
+	var sub UserSubscription
+	changed := false
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("id = ? AND user_id = ?", userSubscriptionId, userId).First(&sub).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("subscription not found")
+			}
+			return err
+		}
+		if sub.Status != "active" || sub.EndTime <= now {
+			return errors.New("only active subscriptions can be enabled")
+		}
+		if !sub.UserDisabled {
+			return nil
+		}
+		changed = true
+		return tx.Model(&sub).Updates(map[string]interface{}{
+			"user_disabled":        false,
+			"user_disabled_at":     0,
+			"user_disabled_reason": "",
+		}).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	if changed {
+		sub.UserDisabled = false
+		sub.UserDisabledAt = 0
+		sub.UserDisabledReason = ""
+	}
+	return &sub, nil
 }
 
 // AdminInvalidateUserSubscription marks a user subscription as cancelled and ends it immediately.
@@ -1382,7 +1470,7 @@ func PreConsumeUserSubscription(requestId string, userId int, modelName string, 
 
 		var subs []UserSubscription
 		if err := lockForUpdate(tx).
-			Where("user_id = ? AND status = ? AND end_time > ?", userId, "active", now).
+			Where("user_id = ? AND status = ? AND end_time > ? AND user_disabled = ?", userId, "active", now, false).
 			Order("end_time asc, id asc").
 			Find(&subs).Error; err != nil {
 			return errors.New("no active subscription")
@@ -1392,6 +1480,9 @@ func PreConsumeUserSubscription(requestId string, userId int, modelName string, 
 		}
 		for _, candidate := range subs {
 			sub := candidate
+			if sub.UserDisabled {
+				continue
+			}
 			plan, err := getSubscriptionPlanByIdTx(tx, sub.PlanId)
 			if err != nil {
 				return err

@@ -16,13 +16,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import {
-  type ColumnFiltersState,
-  type OnChangeFn,
-  type PaginationState,
-  type RowSelectionState,
-  type VisibilityState,
-  type SortingState,
+import type {
+  ColumnFiltersState,
+  OnChangeFn,
+  PaginationState,
+  RowSelectionState,
+  VisibilityState,
+  SortingState,
 } from '@tanstack/react-table'
 import { Copy, Plus } from 'lucide-react'
 import {
@@ -210,7 +210,7 @@ const ModelRatioVisualEditorComponent = forwardRef<
     const draftByName = new Map(draftRows.map((row) => [row.name, row]))
     const modelNames = new Set([...savedByName.keys(), ...draftByName.keys()])
 
-    return Array.from(modelNames)
+    return [...modelNames]
       .map((name) => {
         const saved = savedByName.get(name)
         const draft = draftByName.get(name)
@@ -500,7 +500,7 @@ const ModelRatioVisualEditorComponent = forwardRef<
         value: string | undefined
       ) => {
         if (!value || value === '') return
-        const parsed = parseFloat(value)
+        const parsed = Number.parseFloat(value)
         if (Number.isFinite(parsed)) target[name] = parsed
       }
 

@@ -30,6 +30,7 @@ import type {
   SubscriptionPayResponse,
   SubscriptionPayRequest,
   SelfSubscriptionData,
+  UserSubscriptionToggleResponse,
 } from './types'
 
 // ============================================================================
@@ -230,6 +231,20 @@ export async function updateBillingPreference(
   const res = await api.put('/api/subscription/self/preference', {
     billing_preference: preference,
   })
+  return res.data
+}
+
+export async function disableSelfSubscription(
+  id: number
+): Promise<ApiResponse<UserSubscriptionToggleResponse>> {
+  const res = await api.post(`/api/subscription/self/${id}/disable`, {})
+  return res.data
+}
+
+export async function enableSelfSubscription(
+  id: number
+): Promise<ApiResponse<UserSubscriptionToggleResponse>> {
+  const res = await api.post(`/api/subscription/self/${id}/enable`)
   return res.data
 }
 

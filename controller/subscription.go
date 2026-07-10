@@ -27,6 +27,10 @@ type SubscriptionBalancePayRequest struct {
 	PlanId int `json:"plan_id"`
 }
 
+type UserSubscriptionDisableRequest struct {
+	Reason string `json:"reason"`
+}
+
 // ---- User APIs ----
 
 func GetSubscriptionPlans(c *gin.Context) {
@@ -95,6 +99,57 @@ func UpdateSubscriptionPreference(c *gin.Context) {
 		return
 	}
 	common.ApiSuccess(c, gin.H{"billing_preference": pref})
+}
+
+func DisableUserSubscription(c *gin.Context) {
+	userId := c.GetInt("id")
+	subscriptionId, err := strconv.Atoi(c.Param("id"))
+	if err != nil || subscriptionId <= 0 {
+		common.ApiErrorMsg(c, "invalid subscription ID")
+		return
+	}
+	var req UserSubscriptionDisableRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ApiErrorMsg(c, "invalid request")
+		return
+	}
+	sub, err := model.UserDisableSubscription(userId, subscriptionId, req.Reason)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	recordUserSecurityAudit(c, userId, "subscription.user_disable", map[string]interface{}{
+		"subscription_id": subscriptionId,
+		"reason":          sub.UserDisabledReason,
+	})
+	common.ApiSuccess(c, gin.H{
+		"subscription_id":      sub.Id,
+		"user_disabled":        sub.UserDisabled,
+		"user_disabled_at":     sub.UserDisabledAt,
+		"user_disabled_reason": sub.UserDisabledReason,
+	})
+}
+
+func EnableUserSubscription(c *gin.Context) {
+	userId := c.GetInt("id")
+	subscriptionId, err := strconv.Atoi(c.Param("id"))
+	if err != nil || subscriptionId <= 0 {
+		common.ApiErrorMsg(c, "invalid subscription ID")
+		return
+	}
+	sub, err := model.UserEnableSubscription(userId, subscriptionId)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	recordUserSecurityAudit(c, userId, "subscription.user_enable", map[string]interface{}{
+		"subscription_id": subscriptionId,
+	})
+	common.ApiSuccess(c, gin.H{
+		"subscription_id":  sub.Id,
+		"user_disabled":    sub.UserDisabled,
+		"user_disabled_at": sub.UserDisabledAt,
+	})
 }
 
 func SubscriptionRequestBalancePay(c *gin.Context) {

@@ -114,6 +114,9 @@ export const userSubscriptionSchema = z.object({
   amount_used: z.number(),
   next_reset_time: z.number().optional(),
   sub_quota_limits: z.string().optional().default(''),
+  user_disabled: z.boolean().optional().default(false),
+  user_disabled_at: z.number().optional().default(0),
+  user_disabled_reason: z.string().optional().default(''),
 })
 
 export type UserSubscription = z.infer<typeof userSubscriptionSchema>
@@ -191,6 +194,13 @@ export interface SelfSubscriptionData {
   billing_preference: string
   subscriptions: UserSubscriptionRecord[]
   all_subscriptions: UserSubscriptionRecord[]
+}
+
+export interface UserSubscriptionToggleResponse {
+  subscription_id: number
+  user_disabled: boolean
+  user_disabled_at: number
+  user_disabled_reason?: string
 }
 
 // ============================================================================

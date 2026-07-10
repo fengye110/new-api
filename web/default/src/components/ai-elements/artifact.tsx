@@ -142,7 +142,7 @@ export const ArtifactAction = ({
     return (
       <TooltipProvider>
         <Tooltip>
-          <TooltipTrigger render={button}></TooltipTrigger>
+          <TooltipTrigger render={button} />
           <TooltipContent>
             <p>{tooltip}</p>
           </TooltipContent>
