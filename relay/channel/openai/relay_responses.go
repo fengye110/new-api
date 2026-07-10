@@ -80,6 +80,12 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 	var responseTextBuilder strings.Builder
 
 	helper.StreamScannerHandler(c, resp, info, func(data string, sr *helper.StreamResult) {
+		// Codex emits SSE metadata such as "event: response.created" as data
+		// before JSON Responses events. Only JSON payloads are relay events.
+		data = strings.TrimSpace(data)
+		if !strings.HasPrefix(data, "{") {
+			return
+		}
 
 		// 检查当前数据是否包含 completed 状态和 usage 信息
 		var streamResponse dto.ResponsesStreamResponse
