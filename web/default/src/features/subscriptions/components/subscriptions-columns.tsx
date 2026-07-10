@@ -193,6 +193,37 @@ export function useSubscriptionsColumns(): ColumnDef<PlanRecord>[] {
         size: 150,
       },
       {
+        id: 'subscription_visibility_permissions',
+        header: t('Subscription Visibility Permissions'),
+        meta: { mobileHidden: true },
+        cell: ({ row }) => {
+          const groups = row.original.plan.subscription_groups || []
+          if (groups.length === 0) {
+            return (
+              <StatusBadge
+                label={t('Default All')}
+                variant='neutral'
+                copyable={false}
+                className='-ml-1.5'
+              />
+            )
+          }
+          return (
+            <BadgeCell>
+              {groups.map((group) => (
+                <StatusBadge
+                  key={group.id}
+                  label={group.is_default ? `${group.name} (${t('All users')})` : group.name}
+                  variant='neutral'
+                  copyable={false}
+                />
+              ))}
+            </BadgeCell>
+          )
+        },
+        size: 200,
+      },
+      {
         id: 'upgrade_group',
         header: t('Upgrade Group'),
         meta: {

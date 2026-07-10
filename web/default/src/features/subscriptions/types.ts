@@ -47,6 +47,15 @@ export const subscriptionPlanSchema = z.object({
   // Stored as a JSON text field on the backend ("" or a JSON array string).
   sub_quota_limits: z.string().optional().default(''),
   subscription_group_ids: z.array(z.number()).optional(),
+  subscription_groups: z
+    .array(
+      z.object({
+        id: z.number(),
+        name: z.string(),
+        is_default: z.boolean(),
+      })
+    )
+    .optional(),
 })
 
 export type SubscriptionPlan = z.infer<typeof subscriptionPlanSchema>

@@ -6,7 +6,7 @@ it under the terms of the GNU Affero General Public License as
 published by the Free Software Foundation, either version 3 of the
 License, or (at your option) any later version.
 */
-import { Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useEffectEvent, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -50,6 +50,9 @@ export function SubscriptionAccessGroups() {
   const [detailsType, setDetailsType] = useState<'users' | 'plans'>('users')
   const [detailUsers, setDetailUsers] = useState<SubscriptionAccessGroupUser[]>([])
   const [detailPlans, setDetailPlans] = useState<SubscriptionAccessGroupPlan[]>([])
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editDescription, setEditDescription] = useState('')
 
   const reload = useEffectEvent(async () => {
     try {
@@ -91,6 +94,21 @@ export function SubscriptionAccessGroups() {
       return
     }
     await reload()
+  }
+
+  const startEdit = (group: SubscriptionAccessGroup) => {
+    setEditingId(group.id)
+    setEditName(group.name)
+    setEditDescription(group.description)
+  }
+
+  const saveEdit = async (group: SubscriptionAccessGroup) => {
+    const name = editName.trim()
+    const description = editDescription.trim()
+    setEditingId(null)
+    if (name === group.name && description === group.description) return
+    if (!name) return
+    await update({ ...group, name, description })
   }
 
   const remove = async (group: SubscriptionAccessGroup) => {
@@ -164,12 +182,59 @@ export function SubscriptionAccessGroups() {
             {groups.map((group) => (
               <tr key={group.id} className='border-t'>
                 <td className='p-3'>{group.id}</td>
-                <td className='p-3 font-medium'>{group.name}{group.is_default ? ` (${t('Default')})` : ''}</td>
-                <td className='p-3 text-muted-foreground'>{group.description || '-'}</td>
+                <td className='p-3 font-medium'>
+                  {editingId === group.id ? (
+                    <Input
+                      autoFocus
+                      className='h-8'
+                      value={editName}
+                      onChange={(event) => setEditName(event.target.value)}
+                      onBlur={() => void saveEdit(group)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') event.currentTarget.blur()
+                        if (event.key === 'Escape') setEditingId(null)
+                      }}
+                    />
+                  ) : (
+                    <button
+                      type='button'
+                      className='cursor-text text-left hover:underline'
+                      onClick={() => startEdit(group)}
+                    >
+                      {group.name}
+                    </button>
+                  )}
+                  {group.is_default ? ` (${t('Default')})` : ''}
+                </td>
+                <td className='p-3 text-muted-foreground'>
+                  {editingId === group.id ? (
+                    <Input
+                      className='h-8'
+                      value={editDescription}
+                      onChange={(event) => setEditDescription(event.target.value)}
+                      onBlur={() => void saveEdit(group)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') event.currentTarget.blur()
+                        if (event.key === 'Escape') setEditingId(null)
+                      }}
+                    />
+                  ) : (
+                    <button
+                      type='button'
+                      className='cursor-text text-left hover:underline'
+                      onClick={() => startEdit(group)}
+                    >
+                      {group.description || '-'}
+                    </button>
+                  )}
+                </td>
                 <td className='p-3'><Switch checked={group.enabled} disabled={group.is_default} onCheckedChange={(enabled) => void update({ ...group, enabled })} /></td>
                 <td className='p-3'><Button variant='link' className='h-auto p-0' onClick={() => void showDetails(group, 'users')}>{group.user_count ?? 0}</Button></td>
                 <td className='p-3'><Button variant='link' className='h-auto p-0' onClick={() => void showDetails(group, 'plans')}>{group.plan_count ?? 0}</Button></td>
-                <td className='p-3'><Button variant='ghost' size='icon' disabled={group.is_default} onClick={() => void remove(group)} aria-label={t('Delete')}><Trash2 /></Button></td>
+                <td className='p-3 flex items-center gap-1'>
+                  <Button variant='ghost' size='icon' onClick={() => startEdit(group)} aria-label={t('Edit')} disabled={editingId === group.id}><Pencil /></Button>
+                  <Button variant='ghost' size='icon' disabled={group.is_default} onClick={() => void remove(group)} aria-label={t('Delete')}><Trash2 /></Button>
+                </td>
               </tr>
             ))}
           </tbody>
