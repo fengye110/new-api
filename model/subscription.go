@@ -581,6 +581,33 @@ func CreateUserSubscriptionFromPlanTx(tx *gorm.DB, userId int, plan *Subscriptio
 	return sub, nil
 }
 
+// AutoSubscribeFreePlansForNewUser subscribes a new user to every enabled,
+// free plan that they are permitted to access.
+func AutoSubscribeFreePlansForNewUser(userId int) error {
+	if userId <= 0 {
+		return errors.New("invalid user id")
+	}
+	return DB.Transaction(func(tx *gorm.DB) error {
+		var plans []SubscriptionPlan
+		if err := tx.Where("enabled = ? AND price_amount = ?", true, 0).Order("sort_order desc, id asc").Find(&plans).Error; err != nil {
+			return err
+		}
+		for i := range plans {
+			allowed, err := CanUserAccessSubscriptionPlanTx(tx, userId, plans[i].Id)
+			if err != nil {
+				return err
+			}
+			if !allowed {
+				continue
+			}
+			if _, err := CreateUserSubscriptionFromPlanTx(tx, userId, &plans[i], "new_user_auto"); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 // Complete a subscription order (idempotent). Creates a UserSubscription snapshot from the plan.
 // expectedPaymentProvider guards against cross-gateway callback attacks (empty skips the check).
 // actualPaymentMethod updates the order's PaymentMethod to reflect the real payment type used (empty skips update).

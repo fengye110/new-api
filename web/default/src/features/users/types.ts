@@ -112,6 +112,7 @@ export interface UserFormData {
   group?: string // Only used when updating user
   remark?: string // Only used when updating user
   admin_permissions?: AdminPermissionMatrix
+  subscription_group_ids?: number[]
 }
 
 export type ManageUserAction =

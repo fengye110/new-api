@@ -984,6 +984,9 @@ func CreateUser(c *gin.Context) {
 		if err := cleanUser.InsertWithTx(tx, 0); err != nil {
 			return err
 		}
+		if err := model.ReplaceUserSubscriptionAccessGroupsTx(tx, cleanUser.Id, user.SubscriptionGroupIds, c.GetInt("id")); err != nil {
+			return err
+		}
 		touched, err := updateAdminPermissionsForUserInTx(c, tx, cleanUser.Id, cleanUser.Role, user.AdminPermissions)
 		authzTouched = touched
 		return err

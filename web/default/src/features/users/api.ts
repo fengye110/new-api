@@ -83,9 +83,13 @@ export async function getUser(id: number): Promise<ApiResponse<User>> {
  * Create a new user
  */
 export async function createUser(
-  data: UserFormData
+  data: UserFormData,
+  subscriptionGroupIds: number[]
 ): Promise<ApiResponse<User>> {
-  const res = await api.post('/api/user/', data)
+  const res = await api.post('/api/user/', {
+    ...data,
+    subscription_group_ids: subscriptionGroupIds,
+  })
   return res.data
 }
 

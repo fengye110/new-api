@@ -69,6 +69,10 @@ const BILLING_SECTIONS = [
           quota_setting: {
             enable_free_model_pre_consume:
               settings['quota_setting.enable_free_model_pre_consume'],
+            auto_subscribe_free_plans_for_new_user:
+              settings[
+                'quota_setting.auto_subscribe_free_plans_for_new_user'
+              ],
           },
         }}
         complianceConfirmed={

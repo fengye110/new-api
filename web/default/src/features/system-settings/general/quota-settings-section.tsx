@@ -61,6 +61,7 @@ const quotaSchema = z.object({
   }),
   quota_setting: z.object({
     enable_free_model_pre_consume: z.boolean(),
+    auto_subscribe_free_plans_for_new_user: z.boolean(),
   }),
 })
 
@@ -238,6 +239,30 @@ export function QuotaSettingsSection({
             />
 
             <SettingsFormGridItem span='full'>
+              <FormField
+                control={form.control}
+                name='quota_setting.auto_subscribe_free_plans_for_new_user'
+                render={({ field }) => (
+                  <SettingsSwitchItem>
+                    <SettingsSwitchContent>
+                      <FormLabel>{t('Auto-Subscribe New Users to Free Plans')}</FormLabel>
+                      <FormDescription>
+                        {t(
+                          'Automatically subscribe new users to enabled free plans they can access.'
+                        )}
+                      </FormDescription>
+                    </SettingsSwitchContent>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={updateOption.isPending}
+                      />
+                    </FormControl>
+                  </SettingsSwitchItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name='quota_setting.enable_free_model_pre_consume'
