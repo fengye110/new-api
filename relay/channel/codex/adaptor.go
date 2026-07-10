@@ -1,7 +1,6 @@
 package codex
 
 import (
-	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -108,14 +107,28 @@ func (a *Adaptor) ConvertOpenAIResponsesRequest(c *gin.Context, info *relaycommo
 	// Codex backend requires the `instructions` field to be present.
 	// Keep it consistent with Codex CLI behavior by defaulting to an empty string.
 	if len(request.Instructions) == 0 {
-		request.Instructions = json.RawMessage(`""`)
+		b, err := common.Marshal("")
+		if err != nil {
+			return nil, err
+		}
+		request.Instructions = b
+	}
+
+	if len(request.PromptCacheKey) == 0 && c != nil && c.Request != nil {
+		if sessionID := strings.TrimSpace(c.Request.Header.Get("Session_id")); sessionID != "" {
+			b, err := common.Marshal(sessionID)
+			if err != nil {
+				return nil, err
+			}
+			request.PromptCacheKey = b
+		}
 	}
 
 	if isCompact {
 		return request, nil
 	}
 	// codex: store must be false
-	request.Store = json.RawMessage("false")
+	request.Store = []byte("false")
 	// The Codex responses endpoint only supports server-sent events. The relay
 	// buffers that stream for non-streaming clients when necessary.
 	request.Stream = common.GetPointer(true)
