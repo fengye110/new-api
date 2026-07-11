@@ -65,6 +65,10 @@ web/             — Frontend themes container
 
 ## Rules
 
+### Documentation
+
+- Any new or changed feature MUST update a relevant Markdown file under `docs/` in the same change. Create a focused document when no existing document covers the feature; keep `docs/admin-tools.md` current for administrator-facing tools and entry points.
+
 ### Common Code Quality
 
 - New code should stay direct and readable. Prefer early returns, clear branches, and well-named local variables to deep nesting or layered control flow.
