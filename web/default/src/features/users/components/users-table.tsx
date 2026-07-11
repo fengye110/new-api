@@ -32,6 +32,7 @@ import { useTableUrlState } from '@/hooks/use-table-url-state'
 import { getSubscriptionAccessGroups } from '@/features/subscriptions/api'
 import { getUsers, searchUsers } from '../api'
 import {
+	USER_ROLE,
   USER_STATUS,
   getUserStatusOptions,
   getUserRoleOptions,
@@ -46,6 +47,19 @@ const route = getRouteApi('/_authenticated/users/')
 
 function isDisabledUserRow(user: User) {
   return isUserDeleted(user) || user.status === USER_STATUS.DISABLED
+}
+
+function getUserRowClassName(user: User, isMobile: boolean) {
+  if (user.role === USER_ROLE.ROOT) {
+    return 'bg-amber-500/10 hover:bg-amber-500/15 dark:bg-amber-400/15 dark:hover:bg-amber-400/20'
+  }
+  if (user.role === USER_ROLE.ADMIN) {
+    return 'bg-sky-500/10 hover:bg-sky-500/15 dark:bg-sky-400/15 dark:hover:bg-sky-400/20'
+  }
+  if (isDisabledUserRow(user)) {
+    return isMobile ? DISABLED_ROW_MOBILE : DISABLED_ROW_DESKTOP
+  }
+  return undefined
 }
 
 export function UsersTable() {
@@ -226,8 +240,7 @@ export function UsersTable() {
         ],
       }}
       getRowClassName={(row, { isMobile }) => {
-        if (!isDisabledUserRow(row.original)) return undefined
-        return isMobile ? DISABLED_ROW_MOBILE : DISABLED_ROW_DESKTOP
+        return getUserRowClassName(row.original, isMobile)
       }}
       bulkActions={<DataTableBulkActions table={table} />}
     />

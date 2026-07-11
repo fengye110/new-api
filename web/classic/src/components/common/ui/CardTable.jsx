@@ -133,13 +133,20 @@ const CardTable = ({
   const MobileRowCard = ({ record, index }) => {
     const [showDetails, setShowDetails] = useState(false);
     const rowKeyVal = getRowKey(record, index);
+    const rowClassName =
+      typeof tableProps.rowClassName === 'function'
+        ? tableProps.rowClassName(record, index)
+        : tableProps.rowClassName;
 
     const hasDetails =
       tableProps.expandedRowRender &&
       (!tableProps.rowExpandable || tableProps.rowExpandable(record));
 
     return (
-      <Card key={rowKeyVal} className='!rounded-2xl shadow-sm'>
+      <Card
+        key={rowKeyVal}
+        className={`!rounded-2xl shadow-sm ${rowClassName || ''}`}
+      >
         {columns.map((col, colIdx) => {
           if (
             tableProps?.visibleColumns &&

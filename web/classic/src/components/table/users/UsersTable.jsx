@@ -186,6 +186,15 @@ const UsersTable = (usersData) => {
         hidePagination={true}
         loading={loading}
         onRow={handleRow}
+        rowClassName={(record) => {
+          if (record.role === 100) {
+            return 'bg-amber-500/10 hover:bg-amber-500/15 dark:bg-amber-400/15 dark:hover:bg-amber-400/20';
+          }
+          if (record.role === 10) {
+            return 'bg-sky-500/10 hover:bg-sky-500/15 dark:bg-sky-400/15 dark:hover:bg-sky-400/20';
+          }
+          return '';
+        }}
         empty={
           <Empty
             image={<IllustrationNoResult style={{ width: 150, height: 150 }} />}
