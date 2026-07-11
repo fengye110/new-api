@@ -59,9 +59,9 @@ func NormalizeOAuthKey(raw string) (string, error) {
 
 	key := OAuthKey{
 		IDToken:      firstString([]string{"id_token", "id"}, credential, payload),
-		AccessToken:  firstString([]string{"access_token", "access"}, credential, payload),
-		RefreshToken: firstString([]string{"refresh_token", "refresh"}, credential, payload),
-		AccountID: firstString([]string{"account_id", "chatgpt_account_id", "accountId"},
+		AccessToken:  firstStringByKeyPriority([]string{"access_token", "access"}, credential, payload),
+		RefreshToken: firstStringByKeyPriority([]string{"refresh_token", "refresh"}, credential, payload),
+		AccountID: firstStringByKeyPriority([]string{"account_id", "chatgpt_account_id", "chatgpt_user_id", "accountId"},
 			credential, metadata, payload),
 		ChatGPTAccountID: firstString([]string{"chatgpt_account_id"}, credential, metadata, payload),
 		ChatGPTUserID:    firstString([]string{"chatgpt_user_id"}, credential, metadata, payload),
@@ -81,7 +81,7 @@ func NormalizeOAuthKey(raw string) (string, error) {
 	enrichOAuthKeyFromJWT(&key, key.IDToken)
 	enrichOAuthKeyFromJWT(&key, key.AccessToken)
 	if key.AccountID == "" {
-		key.AccountID = accountIDFromAccessToken(key.AccessToken)
+		return "", errors.New("account_id is required")
 	}
 	if key.Email == "" {
 		key.Email = emailFromAccessToken(key.AccessToken)
@@ -105,24 +105,23 @@ func firstString(keys []string, values ...map[string]any) string {
 	return ""
 }
 
+func firstStringByKeyPriority(keys []string, values ...map[string]any) string {
+	for _, key := range keys {
+		for _, data := range values {
+			if value := stringValue(data[key]); value != "" {
+				return value
+			}
+		}
+	}
+	return ""
+}
+
 func stringValue(value any) string {
 	text, ok := value.(string)
 	if !ok {
 		return ""
 	}
 	return strings.TrimSpace(text)
-}
-
-func accountIDFromAccessToken(token string) string {
-	claims := jwtClaims(token)
-	auth, ok := claims["https://api.openai.com/auth"].(map[string]any)
-	if !ok {
-		return ""
-	}
-	if accountID := stringValue(auth["chatgpt_account_id"]); accountID != "" {
-		return accountID
-	}
-	return ""
 }
 
 func emailFromAccessToken(token string) string {
@@ -143,9 +142,6 @@ func enrichOAuthKeyFromJWT(key *OAuthKey, token string) {
 	auth, ok := claims["https://api.openai.com/auth"].(map[string]any)
 	if !ok {
 		return
-	}
-	if key.AccountID == "" {
-		key.AccountID = stringValue(auth["chatgpt_account_id"])
 	}
 	if key.ChatGPTAccountID == "" {
 		key.ChatGPTAccountID = stringValue(auth["chatgpt_account_id"])

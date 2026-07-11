@@ -532,31 +532,13 @@ func addDefaultCodexModels(channel *model.Channel) {
 		existing[name] = struct{}{}
 	}
 	for _, name := range codex.DefaultModelList {
-		for _, model := range []string{name, "openai/" + name} {
-			if _, ok := existing[model]; ok {
-				continue
-			}
-			models = append(models, model)
-			existing[model] = struct{}{}
+		if _, ok := existing[name]; ok {
+			continue
 		}
+		models = append(models, name)
+		existing[name] = struct{}{}
 	}
 	channel.Models = strings.Join(models, ",")
-
-	mapping := make(map[string]string)
-	if channel.ModelMapping != nil && strings.TrimSpace(*channel.ModelMapping) != "" {
-		if err := common.Unmarshal([]byte(*channel.ModelMapping), &mapping); err != nil {
-			return
-		}
-	}
-	for _, name := range codex.DefaultModelList {
-		source := "openai/" + name
-		if _, ok := mapping[source]; !ok {
-			mapping[source] = name
-		}
-	}
-	if encoded, err := common.Marshal(mapping); err == nil {
-		channel.ModelMapping = common.GetPointer(string(encoded))
-	}
 }
 
 func RefreshCodexChannelCredential(c *gin.Context) {

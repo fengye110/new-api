@@ -290,14 +290,6 @@ export const CODEX_DEFAULT_MODELS = [
   'gpt-5.4-mini',
 ] as const
 
-export const CODEX_DEFAULT_MODEL_MAPPING = Object.fromEntries(
-  CODEX_DEFAULT_MODELS.map((model) => [`openai/${model}`, model])
-)
-
-export const CODEX_DEFAULT_CHANNEL_MODELS = CODEX_DEFAULT_MODELS.flatMap(
-  (model) => [model, `openai/${model}`]
-)
-
 // ============================================================================
 // Table Configuration
 // ============================================================================

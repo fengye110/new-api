@@ -137,8 +137,7 @@ import {
 } from '../../api'
 import {
   ADD_MODE_OPTIONS,
-  CODEX_DEFAULT_MODEL_MAPPING,
-  CODEX_DEFAULT_CHANNEL_MODELS,
+  CODEX_DEFAULT_MODELS,
   CHANNEL_STATUS_LABELS,
   CHANNEL_TYPE_OPTIONS,
   CHANNEL_TYPE_WARNINGS,
@@ -1273,16 +1272,13 @@ export function ChannelMutateDrawer({
     }
 
     if (currentType === 57 && !form.getValues('models').trim()) {
-      form.setValue('models', CODEX_DEFAULT_CHANNEL_MODELS.join(','))
+      form.setValue('models', CODEX_DEFAULT_MODELS.join(','))
     }
 
     if (currentType === 57 && !form.getValues('test_model')?.trim()) {
       form.setValue('test_model', 'gpt-5.4-mini')
     }
 
-    if (currentType === 57 && !form.getValues('model_mapping')?.trim()) {
-      form.setValue('model_mapping', JSON.stringify(CODEX_DEFAULT_MODEL_MAPPING))
-    }
   }, [currentType, isEditing, form])
 
   useEffect(() => {
