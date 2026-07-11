@@ -460,6 +460,40 @@ func getUserGroupByIdTx(tx *gorm.DB, userId int) (string, error) {
 	return group, nil
 }
 
+func getHighestActiveSubscriptionUpgradeGroupTx(tx *gorm.DB, userId int, now int64, excludedSubscriptionId int) (string, error) {
+	if tx == nil || userId <= 0 {
+		return "", errors.New("invalid user or transaction")
+	}
+	query := tx.Table("user_subscriptions AS us").
+		Select("us.upgrade_group").
+		Joins("JOIN subscription_plans AS p ON p.id = us.plan_id").
+		Where("us.user_id = ? AND us.status = ? AND us.end_time > ? AND us.user_disabled = ? AND us.upgrade_group <> ''", userId, "active", now, false)
+	if excludedSubscriptionId > 0 {
+		query = query.Where("us.id <> ?", excludedSubscriptionId)
+	}
+	var upgradeGroup string
+	result := query.Order("p.sort_order DESC, us.end_time DESC, us.id DESC").Limit(1).Find(&upgradeGroup)
+	if result.Error != nil {
+		return "", result.Error
+	}
+	return strings.TrimSpace(upgradeGroup), nil
+}
+
+func applyHighestActiveSubscriptionUpgradeGroupTx(tx *gorm.DB, userId int, now int64) (string, error) {
+	target, err := getHighestActiveSubscriptionUpgradeGroupTx(tx, userId, now, 0)
+	if err != nil || target == "" {
+		return "", err
+	}
+	currentGroup, err := getUserGroupByIdTx(tx, userId)
+	if err != nil || currentGroup == target {
+		return "", err
+	}
+	if err := tx.Model(&User{}).Where("id = ?", userId).Update("group", target).Error; err != nil {
+		return "", err
+	}
+	return target, nil
+}
+
 func downgradeUserGroupForSubscriptionTx(tx *gorm.DB, sub *UserSubscription, now int64) (string, error) {
 	if tx == nil || sub == nil {
 		return "", errors.New("invalid downgrade args")
@@ -474,19 +508,24 @@ func downgradeUserGroupForSubscriptionTx(tx *gorm.DB, sub *UserSubscription, now
 	if err != nil {
 		return "", err
 	}
-	// If another active upgraded subscription exists, keep the current group.
-	var activeSub UserSubscription
-	activeQuery := tx.Where("user_id = ? AND status = ? AND end_time > ? AND id <> ? AND upgrade_group <> ''",
-		sub.UserId, "active", now, sub.Id).
-		Order("end_time desc, id desc").
-		Limit(1).
-		Find(&activeSub)
-	if activeQuery.Error == nil && activeQuery.RowsAffected > 0 {
-		return "", nil
+	// Disabled subscriptions do not participate. Keep the highest-priority
+	// remaining subscription's upgrade group when one is available.
+	target, err := getHighestActiveSubscriptionUpgradeGroupTx(tx, sub.UserId, now, sub.Id)
+	if err != nil {
+		return "", err
+	}
+	if target != "" {
+		if target == currentGroup {
+			return "", nil
+		}
+		if err := tx.Model(&User{}).Where("id = ?", sub.UserId).Update("group", target).Error; err != nil {
+			return "", err
+		}
+		return target, nil
 	}
 	// Determine the downgrade target: an explicit downgrade group takes precedence,
 	// otherwise revert to the group held before purchase (legacy behavior).
-	target := downgradeGroup
+	target = downgradeGroup
 	if target == "" {
 		// Legacy behavior: only revert when the subscription actually elevated the user.
 		if currentGroup != upgradeGroup {
@@ -1087,6 +1126,7 @@ func UserDisableSubscription(userId int, userSubscriptionId int, reason string) 
 
 	var sub UserSubscription
 	changed := false
+	cacheGroup := ""
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("id = ? AND user_id = ?", userSubscriptionId, userId).First(&sub).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -1101,11 +1141,16 @@ func UserDisableSubscription(userId int, userSubscriptionId int, reason string) 
 			return nil
 		}
 		changed = true
-		return tx.Model(&sub).Updates(map[string]interface{}{
+		if err := tx.Model(&sub).Updates(map[string]interface{}{
 			"user_disabled":        true,
 			"user_disabled_at":     now,
 			"user_disabled_reason": reason,
-		}).Error
+		}).Error; err != nil {
+			return err
+		}
+		var err error
+		cacheGroup, err = downgradeUserGroupForSubscriptionTx(tx, &sub, now)
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -1114,6 +1159,9 @@ func UserDisableSubscription(userId int, userSubscriptionId int, reason string) 
 		sub.UserDisabled = true
 		sub.UserDisabledAt = now
 		sub.UserDisabledReason = reason
+		if cacheGroup != "" {
+			_ = UpdateUserGroupCache(userId, cacheGroup)
+		}
 	}
 	return &sub, nil
 }
@@ -1126,6 +1174,7 @@ func UserEnableSubscription(userId int, userSubscriptionId int) (*UserSubscripti
 
 	var sub UserSubscription
 	changed := false
+	cacheGroup := ""
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("id = ? AND user_id = ?", userSubscriptionId, userId).First(&sub).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -1140,11 +1189,16 @@ func UserEnableSubscription(userId int, userSubscriptionId int) (*UserSubscripti
 			return nil
 		}
 		changed = true
-		return tx.Model(&sub).Updates(map[string]interface{}{
+		if err := tx.Model(&sub).Updates(map[string]interface{}{
 			"user_disabled":        false,
 			"user_disabled_at":     0,
 			"user_disabled_reason": "",
-		}).Error
+		}).Error; err != nil {
+			return err
+		}
+		var err error
+		cacheGroup, err = applyHighestActiveSubscriptionUpgradeGroupTx(tx, userId, now)
+		return err
 	})
 	if err != nil {
 		return nil, err
@@ -1153,6 +1207,9 @@ func UserEnableSubscription(userId int, userSubscriptionId int) (*UserSubscripti
 		sub.UserDisabled = false
 		sub.UserDisabledAt = 0
 		sub.UserDisabledReason = ""
+		if cacheGroup != "" {
+			_ = UpdateUserGroupCache(userId, cacheGroup)
+		}
 	}
 	return &sub, nil
 }

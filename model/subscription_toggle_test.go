@@ -3,6 +3,7 @@ package model
 import (
 	"testing"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -60,4 +61,35 @@ func TestUserSubscriptionToggleRejectsOtherUsersAndExpiredSubscription(t *testin
 	require.Error(t, err)
 	_, err = UserEnableSubscription(801, expiredSub.Id)
 	require.Error(t, err)
+}
+
+func TestUserSubscriptionToggleUsesHighestPriorityEnabledUpgradeGroup(t *testing.T) {
+	truncateTables(t)
+	now := GetDBTimestamp()
+	user := &User{Id: 803, Username: "subscription-toggle-user", Group: "premium", Status: common.UserStatusEnabled}
+	require.NoError(t, DB.Create(user).Error)
+	highPlan := &SubscriptionPlan{Id: 9804, Title: "high-priority", SortOrder: 100}
+	lowPlan := &SubscriptionPlan{Id: 9805, Title: "low-priority", SortOrder: 10}
+	require.NoError(t, DB.Create(highPlan).Error)
+	require.NoError(t, DB.Create(lowPlan).Error)
+	highSub := &UserSubscription{Id: 9804, UserId: user.Id, PlanId: highPlan.Id, StartTime: now - 60, EndTime: now + 7200, Status: "active", UpgradeGroup: "svip", DowngradeGroup: "premium"}
+	lowSub := &UserSubscription{Id: 9805, UserId: user.Id, PlanId: lowPlan.Id, StartTime: now - 60, EndTime: now + 3600, Status: "active", UpgradeGroup: "vip", DowngradeGroup: "premium"}
+	require.NoError(t, DB.Create(highSub).Error)
+	require.NoError(t, DB.Create(lowSub).Error)
+
+	_, err := UserDisableSubscription(user.Id, highSub.Id, "pause")
+	require.NoError(t, err)
+	var updatedUser User
+	require.NoError(t, DB.First(&updatedUser, user.Id).Error)
+	assert.Equal(t, "vip", updatedUser.Group)
+
+	_, err = UserDisableSubscription(user.Id, lowSub.Id, "pause")
+	require.NoError(t, err)
+	require.NoError(t, DB.First(&updatedUser, user.Id).Error)
+	assert.Equal(t, "premium", updatedUser.Group)
+
+	_, err = UserEnableSubscription(user.Id, highSub.Id)
+	require.NoError(t, err)
+	require.NoError(t, DB.First(&updatedUser, user.Id).Error)
+	assert.Equal(t, "svip", updatedUser.Group)
 }
