@@ -17,13 +17,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
-import type { ChangeEvent } from 'react'
+import { useState, type ChangeEvent } from 'react'
 import type { Resolver } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import * as z from 'zod'
 
 import { Input } from '@/components/design-system/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Dialog } from '@/components/dialog'
+import { Button } from '@/components/design-system/button'
 import {
   Form,
   FormControl,
@@ -33,7 +35,9 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { getCurrencyDisplay } from '@/lib/currency'
 import { formatQuota } from '@/lib/format'
 
 import { FormDirtyIndicator } from '../components/form-dirty-indicator'
@@ -83,6 +87,8 @@ export function QuotaSettingsSection({
 }: QuotaSettingsSectionProps) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
+  const [usdConverterOpen, setUsdConverterOpen] = useState(false)
+  const [usdAmount, setUsdAmount] = useState('')
   const handleNumberChange =
     (onChange: (value: QuotaInputValue) => void) =>
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -107,6 +113,10 @@ export function QuotaSettingsSection({
         }
       },
     })
+  const parsedUsdAmount = Number.parseFloat(usdAmount)
+  const convertedQuota = Number.isFinite(parsedUsdAmount)
+    ? Math.round(parsedUsdAmount * getCurrencyDisplay().config.quotaPerUnit)
+    : 0
 
   return (
     <SettingsSection title={t('Quota Settings')}>
@@ -135,7 +145,17 @@ export function QuotaSettingsSection({
               name='QuotaForNewUser'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('New User Quota')}</FormLabel>
+                  <div className='flex items-center justify-between gap-2'>
+                    <FormLabel>{t('New User Quota')}</FormLabel>
+                    <Button
+                      type='button'
+                      variant='outline'
+                      size='sm'
+                      onClick={() => setUsdConverterOpen(true)}
+                    >
+                      {t('Convert USD to Quota')}
+                    </Button>
+                  </div>
                   <FormControl>
                     <Input
                       type='number'
@@ -328,6 +348,57 @@ export function QuotaSettingsSection({
               )}
             />
           </SettingsFormGrid>
+
+          <Dialog
+            open={usdConverterOpen}
+            onOpenChange={setUsdConverterOpen}
+            title={t('Convert USD to Quota')}
+            description={t('Enter a USD amount to calculate the new user quota.')}
+            contentHeight='auto'
+            footer={
+              <>
+                <Button
+                  type='button'
+                  variant='outline'
+                  onClick={() => setUsdConverterOpen(false)}
+                >
+                  {t('Cancel')}
+                </Button>
+                <Button
+                  type='button'
+                  disabled={!Number.isFinite(parsedUsdAmount) || parsedUsdAmount < 0}
+                  onClick={() => {
+                    form.setValue('QuotaForNewUser', convertedQuota, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                    setUsdConverterOpen(false)
+                    setUsdAmount('')
+                  }}
+                >
+                  {t('Confirm')}
+                </Button>
+              </>
+            }
+          >
+            <div className='space-y-3'>
+              <Label htmlFor='new-user-quota-usd'>{t('USD Amount')}</Label>
+              <Input
+                id='new-user-quota-usd'
+                type='number'
+                min='0'
+                step='any'
+                placeholder={t('Enter USD amount')}
+                value={usdAmount}
+                onChange={(event) => setUsdAmount(event.target.value)}
+              />
+              <p className='text-muted-foreground text-sm'>
+                {t('Converted quota: {{quota}}', {
+                  quota: convertedQuota.toLocaleString(),
+                })}
+              </p>
+            </div>
+          </Dialog>
         </SettingsForm>
       </Form>
     </SettingsSection>

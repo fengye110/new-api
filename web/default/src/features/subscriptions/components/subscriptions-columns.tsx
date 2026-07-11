@@ -201,11 +201,12 @@ export function useSubscriptionsColumns(): ColumnDef<PlanRecord>[] {
           if (groups.length === 0) {
             return (
               <StatusBadge
-                label={t('Default All')}
+                appearance='soft'
                 variant='neutral'
-                copyable={false}
                 className='-ml-1.5'
-              />
+              >
+                {t('Default All')}
+              </StatusBadge>
             )
           }
           return (
@@ -213,10 +214,13 @@ export function useSubscriptionsColumns(): ColumnDef<PlanRecord>[] {
               {groups.map((group) => (
                 <StatusBadge
                   key={group.id}
-                  label={group.is_default ? `${group.name} (${t('All users')})` : group.name}
+                  appearance='soft'
                   variant='neutral'
-                  copyable={false}
-                />
+                >
+                  {group.is_default
+                    ? `${group.name} (${t('All users')})`
+                    : group.name}
+                </StatusBadge>
               ))}
             </BadgeCell>
           )
