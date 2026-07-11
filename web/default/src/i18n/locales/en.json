@@ -3781,6 +3781,7 @@
     "Require job success before follow-up actions": "Require job success before follow-up actions",
     "Require login to view models": "Require login to view models",
     "Require login to view rankings": "Require login to view rankings",
+    "Require two-factor authentication or passkey to view API keys": "Require two-factor authentication or passkey to view API keys",
     "required": "required",
     "Required": "Required",
     "Required events:": "Required events:",

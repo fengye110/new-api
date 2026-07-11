@@ -3781,6 +3781,7 @@
     "Require job success before follow-up actions": "在后续操作前要求任务成功",
     "Require login to view models": "要求登录才能查看模型",
     "Require login to view rankings": "要求登录才能查看排行榜",
+    "Require two-factor authentication or passkey to view API keys": "查看 API 密钥时必须先启用双因素认证或通行密钥",
     "required": "必填",
     "Required": "必需",
     "Required events:": "必需事件：",

@@ -3781,6 +3781,7 @@
     "Require job success before follow-up actions": "Требовать успеха задания перед последующими действиями",
     "Require login to view models": "Требовать вход для просмотра моделей",
     "Require login to view rankings": "Требовать вход для просмотра рейтингов",
+    "Require two-factor authentication or passkey to view API keys": "Требовать двухфакторную аутентификацию или ключ доступа для просмотра API-ключей",
     "required": "обязателен",
     "Required": "Обязательно",
     "Required events:": "Обязательные события:",

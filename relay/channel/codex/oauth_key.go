@@ -13,11 +13,18 @@ type OAuthKey struct {
 	AccessToken  string `json:"access_token,omitempty"`
 	RefreshToken string `json:"refresh_token,omitempty"`
 
-	AccountID   string `json:"account_id,omitempty"`
-	LastRefresh string `json:"last_refresh,omitempty"`
-	Email       string `json:"email,omitempty"`
-	Type        string `json:"type,omitempty"`
-	Expired     string `json:"expired,omitempty"`
+	AccountID        string `json:"account_id,omitempty"`
+	ChatGPTAccountID string `json:"chatgpt_account_id,omitempty"`
+	ChatGPTUserID    string `json:"chatgpt_user_id,omitempty"`
+	WorkspaceID      string `json:"workspace_id,omitempty"`
+	ClientID         string `json:"client_id,omitempty"`
+	Name             string `json:"name,omitempty"`
+	PlanType         string `json:"plan_type,omitempty"`
+	ChatGPTPlanType  string `json:"chatgpt_plan_type,omitempty"`
+	LastRefresh      string `json:"last_refresh,omitempty"`
+	Email            string `json:"email,omitempty"`
+	Type             string `json:"type,omitempty"`
+	Expired          string `json:"expired,omitempty"`
 }
 
 func ParseOAuthKey(raw string) (*OAuthKey, error) {
@@ -56,22 +63,25 @@ func NormalizeOAuthKey(raw string) (string, error) {
 		RefreshToken: firstString([]string{"refresh_token", "refresh"}, credential, payload),
 		AccountID: firstString([]string{"account_id", "chatgpt_account_id", "accountId"},
 			credential, metadata, payload),
-		LastRefresh: firstString([]string{"last_refresh"}, credential, metadata, payload),
-		Email:       firstString([]string{"email"}, credential, metadata, payload),
-		Type:        "codex",
-		Expired:     firstString([]string{"expired"}, credential, metadata, payload),
+		ChatGPTAccountID: firstString([]string{"chatgpt_account_id"}, credential, metadata, payload),
+		ChatGPTUserID:    firstString([]string{"chatgpt_user_id"}, credential, metadata, payload),
+		WorkspaceID:      firstString([]string{"workspace_id"}, credential, metadata, payload),
+		ClientID:         firstString([]string{"client_id"}, credential, metadata, payload),
+		Name:             firstString([]string{"name"}, credential, metadata, payload),
+		PlanType:         firstString([]string{"plan_type"}, credential, metadata, payload),
+		ChatGPTPlanType:  firstString([]string{"chatgpt_plan_type"}, credential, metadata, payload),
+		LastRefresh:      firstString([]string{"last_refresh"}, credential, metadata, payload),
+		Email:            firstString([]string{"email"}, credential, metadata, payload),
+		Type:             "codex",
+		Expired:          firstString([]string{"expired"}, credential, metadata, payload),
 	}
 	if key.AccessToken == "" {
 		return "", errors.New("access_token is required")
 	}
+	enrichOAuthKeyFromJWT(&key, key.IDToken)
+	enrichOAuthKeyFromJWT(&key, key.AccessToken)
 	if key.AccountID == "" {
 		key.AccountID = accountIDFromAccessToken(key.AccessToken)
-	}
-	if key.AccountID == "" {
-		key.AccountID = firstString([]string{"chatgpt_user_id"}, credential, metadata, payload)
-	}
-	if key.AccountID == "" {
-		return "", errors.New("account_id is required")
 	}
 	if key.Email == "" {
 		key.Email = emailFromAccessToken(key.AccessToken)
@@ -109,11 +119,46 @@ func accountIDFromAccessToken(token string) string {
 	if !ok {
 		return ""
 	}
-	return stringValue(auth["chatgpt_account_id"])
+	if accountID := stringValue(auth["chatgpt_account_id"]); accountID != "" {
+		return accountID
+	}
+	return ""
 }
 
 func emailFromAccessToken(token string) string {
 	return stringValue(jwtClaims(token)["email"])
+}
+
+func enrichOAuthKeyFromJWT(key *OAuthKey, token string) {
+	claims := jwtClaims(token)
+	if len(claims) == 0 {
+		return
+	}
+	if key.Email == "" {
+		key.Email = stringValue(claims["email"])
+		if profile, ok := claims["https://api.openai.com/profile"].(map[string]any); ok {
+			key.Email = firstString([]string{"email"}, profile)
+		}
+	}
+	auth, ok := claims["https://api.openai.com/auth"].(map[string]any)
+	if !ok {
+		return
+	}
+	if key.AccountID == "" {
+		key.AccountID = stringValue(auth["chatgpt_account_id"])
+	}
+	if key.ChatGPTAccountID == "" {
+		key.ChatGPTAccountID = stringValue(auth["chatgpt_account_id"])
+	}
+	if key.ChatGPTUserID == "" {
+		key.ChatGPTUserID = firstString([]string{"chatgpt_user_id", "user_id"}, auth)
+	}
+	if key.PlanType == "" {
+		key.PlanType = stringValue(auth["chatgpt_plan_type"])
+	}
+	if key.ChatGPTPlanType == "" {
+		key.ChatGPTPlanType = stringValue(auth["chatgpt_plan_type"])
+	}
 }
 
 func jwtClaims(token string) map[string]any {

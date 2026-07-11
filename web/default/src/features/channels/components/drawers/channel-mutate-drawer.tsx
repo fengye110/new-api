@@ -121,7 +121,6 @@ import {
   type ChannelConnectionInfo,
 } from '@/lib/channel-connection-info'
 import { getLobeIcon } from '@/lib/lobe-icon'
-import { ROLE } from '@/lib/roles'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -138,6 +137,8 @@ import {
 } from '../../api'
 import {
   ADD_MODE_OPTIONS,
+  CODEX_DEFAULT_MODEL_MAPPING,
+  CODEX_DEFAULT_CHANNEL_MODELS,
   CHANNEL_STATUS_LABELS,
   CHANNEL_TYPE_OPTIONS,
   CHANNEL_TYPE_WARNINGS,
@@ -601,7 +602,7 @@ export function ChannelMutateDrawer({
     ADMIN_PERMISSION_RESOURCES.CHANNEL,
     ADMIN_PERMISSION_ACTIONS.SENSITIVE_WRITE
   )
-  const canRevealChannelKey = currentUser?.role === ROLE.SUPER_ADMIN
+  const canRevealChannelKey = canEditSensitive
   const [fetchModelsDialogOpen, setFetchModelsDialogOpen] = useState(false)
   const [channelKey, setChannelKey] = useState<string | null>(null)
   const [isChannelKeyLoading, setIsChannelKeyLoading] = useState(false)
@@ -1270,6 +1271,18 @@ export function ChannelMutateDrawer({
         form.setValue('other', 'v2.1')
       }
     }
+
+    if (currentType === 57 && !form.getValues('models').trim()) {
+      form.setValue('models', CODEX_DEFAULT_CHANNEL_MODELS.join(','))
+    }
+
+    if (currentType === 57 && !form.getValues('test_model')?.trim()) {
+      form.setValue('test_model', 'gpt-5.4-mini')
+    }
+
+    if (currentType === 57 && !form.getValues('model_mapping')?.trim()) {
+      form.setValue('model_mapping', JSON.stringify(CODEX_DEFAULT_MODEL_MAPPING))
+    }
   }, [currentType, isEditing, form])
 
   useEffect(() => {
@@ -1343,15 +1356,40 @@ export function ChannelMutateDrawer({
 
     setIsChannelKeyLoading(true)
     try {
-      const res = await getChannelKey(channelId)
-      if (!res.success) {
-        throw new Error(res.message || t('Failed to fetch channel key'))
-      }
+      try {
+        const res = await getChannelKey(channelId)
+        if (!res.success) {
+          const error = new Error(
+            res.message || t('Failed to fetch channel key')
+          )
+          error.name = res.code || 'CHANNEL_KEY_FETCH_FAILED'
+          throw error
+        }
 
-      const keyValue = res.data?.key ?? ''
-      setChannelKey(keyValue)
-      toast.success(t('Channel key unlocked'))
-      return res
+        const keyValue = res.data?.key ?? ''
+        setChannelKey(keyValue)
+        toast.success(t('Channel key unlocked'))
+        return res
+      } catch (error) {
+        const response = (error as { response?: { data?: unknown } }).response
+        const data = response?.data
+        if (data && typeof data === 'object') {
+          const { code, message } = data as {
+            code?: unknown
+            message?: unknown
+          }
+          if (typeof code === 'string') {
+            const requestError = new Error(
+              typeof message === 'string'
+                ? message
+                : t('Failed to fetch channel key')
+            )
+            requestError.name = code
+            throw requestError
+          }
+        }
+        throw error
+      }
     } finally {
       setIsChannelKeyLoading(false)
     }
@@ -1361,13 +1399,24 @@ export function ChannelMutateDrawer({
     if (!channelId) return
 
     try {
-      await withVerification(fetchChannelKey, {
-        preferredMethod: 'passkey',
-        title: 'Verify to view channel key',
-        description:
-          'Use Passkey or 2FA to confirm your identity before revealing this channel key.',
-      })
+      await fetchChannelKey()
     } catch (error) {
+      if (error instanceof Error && error.name === 'VERIFICATION_REQUIRED') {
+        try {
+          await withVerification(fetchChannelKey, {
+            preferredMethod: 'passkey',
+            title: 'Verify to view channel key',
+            description:
+              'Use Passkey or 2FA to confirm your identity before revealing this channel key.',
+          })
+          return
+        } catch (verificationError) {
+          if (verificationError instanceof Error) {
+            toast.error(verificationError.message)
+          }
+          return
+        }
+      }
       if (error instanceof Error) {
         toast.error(error.message)
       }

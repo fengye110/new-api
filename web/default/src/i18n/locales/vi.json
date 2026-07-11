@@ -3781,6 +3781,7 @@
     "Require job success before follow-up actions": "Yêu cầu công việc thành công trước các hành động tiếp theo",
     "Require login to view models": "Yêu cầu đăng nhập để xem các mô hình",
     "Require login to view rankings": "Yêu cầu đăng nhập để xem bảng xếp hạng",
+    "Require two-factor authentication or passkey to view API keys": "Yêu cầu xác thực hai yếu tố hoặc khóa truy cập để xem khóa API",
     "required": "bắt buộc",
     "Required": "Bắt buộc",
     "Required events:": "Sự kiện bắt buộc:",

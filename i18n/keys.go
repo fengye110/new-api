@@ -30,14 +30,15 @@ const (
 
 // Auth middleware messages
 const (
-	MsgAuthNotLoggedIn           = "auth.not_logged_in"
-	MsgAuthAccessTokenInvalid    = "auth.access_token_invalid"
-	MsgAuthUserInfoInvalid       = "auth.user_info_invalid"
-	MsgAuthUserIdNotProvided     = "auth.user_id_not_provided"
-	MsgAuthUserIdFormatError     = "auth.user_id_format_error"
-	MsgAuthUserIdMismatch        = "auth.user_id_mismatch"
-	MsgAuthUserBanned            = "auth.user_banned"
-	MsgAuthInsufficientPrivilege = "auth.insufficient_privilege"
+	MsgAuthNotLoggedIn                    = "auth.not_logged_in"
+	MsgAuthAccessTokenInvalid             = "auth.access_token_invalid"
+	MsgAuthUserInfoInvalid                = "auth.user_info_invalid"
+	MsgAuthUserIdNotProvided              = "auth.user_id_not_provided"
+	MsgAuthUserIdFormatError              = "auth.user_id_format_error"
+	MsgAuthUserIdMismatch                 = "auth.user_id_mismatch"
+	MsgAuthUserBanned                     = "auth.user_banned"
+	MsgAuthInsufficientPrivilege          = "auth.insufficient_privilege"
+	MsgAuthChannelKeyVerificationRequired = "auth.channel_key_verification_required"
 )
 
 // Token related messages

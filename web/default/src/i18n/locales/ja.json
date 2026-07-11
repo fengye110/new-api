@@ -3781,6 +3781,7 @@
     "Require job success before follow-up actions": "フォローアップ アクション前にジョブの成功を要求",
     "Require login to view models": "モデルを表示するにはログインを要求する",
     "Require login to view rankings": "ランキングを表示するにはログインを要求する",
+    "Require two-factor authentication or passkey to view API keys": "API キーの表示に二要素認証またはパスキーを必須にする",
     "required": "必須",
     "Required": "必須",
     "Required events:": "必須イベント:",

@@ -1286,6 +1286,9 @@ func TestChannel(c *gin.Context) {
 	testModel := c.Query("model")
 	endpointType := c.Query("endpoint_type")
 	isStream, _ := strconv.ParseBool(c.Query("stream"))
+	if channel.Type == constant.ChannelTypeCodex {
+		isStream = true
+	}
 	var keyIndex *int
 	if keyIndexStr := strings.TrimSpace(c.Query("key_index")); keyIndexStr != "" {
 		parsedKeyIndex, err := strconv.Atoi(keyIndexStr)

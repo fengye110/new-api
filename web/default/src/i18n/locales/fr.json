@@ -3781,6 +3781,7 @@
     "Require job success before follow-up actions": "Exiger le succès de la tâche avant les actions de suivi",
     "Require login to view models": "Exiger la connexion pour voir les modèles",
     "Require login to view rankings": "Exiger la connexion pour voir les classements",
+    "Require two-factor authentication or passkey to view API keys": "Exiger l'authentification à deux facteurs ou une clé d'accès pour voir les clés API",
     "required": "requis",
     "Required": "Requis",
     "Required events:": "Événements requis :",

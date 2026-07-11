@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/i18n"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 )
@@ -39,7 +41,7 @@ func SecureVerificationRequired() gin.HandlerFunc {
 		if verifiedAtRaw == nil {
 			c.JSON(http.StatusForbidden, gin.H{
 				"success": false,
-				"message": "需要安全验证",
+				"message": common.TranslateMessage(c, i18n.MsgAuthChannelKeyVerificationRequired),
 				"code":    "VERIFICATION_REQUIRED",
 			})
 			c.Abort()
@@ -74,6 +76,17 @@ func SecureVerificationRequired() gin.HandlerFunc {
 		}
 
 		c.Next()
+	}
+}
+
+func ChannelKeySecureVerificationRequired() gin.HandlerFunc {
+	verificationRequired := SecureVerificationRequired()
+	return func(c *gin.Context) {
+		if !common.ChannelKeySecureVerificationEnabled {
+			c.Next()
+			return
+		}
+		verificationRequired(c)
 	}
 }
 

@@ -32,6 +32,7 @@ auth.user_id_format_error: "Unauthorized, New-Api-User header format error"
 auth.user_id_mismatch: "Unauthorized, New-Api-User does not match logged in user"
 auth.user_banned: "User has been banned"
 auth.insufficient_privilege: "Unauthorized, insufficient privileges"
+auth.channel_key_verification_required: "Two-factor authentication or a passkey is required, or disable this restriction in Basic Authentication"
 
 # Token messages
 token.name_too_long: "Token name is too long"

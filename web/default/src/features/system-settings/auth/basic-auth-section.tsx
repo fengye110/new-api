@@ -47,7 +47,8 @@ import { useUpdateOption } from '../hooks/use-update-option'
 const basicAuthSchema = z.object({
   PasswordLoginEnabled: z.boolean(),
   PasswordRegisterEnabled: z.boolean(),
-  EmailVerificationEnabled: z.boolean(),
+	EmailVerificationEnabled: z.boolean(),
+	ChannelKeySecureVerificationEnabled: z.boolean(),
   RegisterEnabled: z.boolean(),
   EmailDomainRestrictionEnabled: z.boolean(),
   EmailAliasRestrictionEnabled: z.boolean(),
@@ -187,6 +188,28 @@ export function BasicAuthSection({ defaultValues }: BasicAuthSectionProps) {
                   <FormDescription>
                     {t('Require email verification for new accounts')}
                   </FormDescription>
+                </SettingsSwitchContent>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+              </SettingsSwitchItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='ChannelKeySecureVerificationEnabled'
+            render={({ field }) => (
+              <SettingsSwitchItem>
+                <SettingsSwitchContent>
+                  <FormLabel>
+                    {t(
+                      'Require two-factor authentication or passkey to view API keys'
+                    )}
+                  </FormLabel>
                 </SettingsSwitchContent>
                 <FormControl>
                   <Switch

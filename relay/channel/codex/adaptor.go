@@ -196,12 +196,10 @@ func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Header, info *rel
 	if accessToken == "" {
 		return errors.New("codex channel: access_token is required")
 	}
-	if accountID == "" {
-		return errors.New("codex channel: account_id is required")
-	}
-
 	req.Set("Authorization", "Bearer "+accessToken)
-	req.Set("chatgpt-account-id", accountID)
+	if accountID != "" {
+		req.Set("chatgpt-account-id", accountID)
+	}
 
 	if req.Get("OpenAI-Beta") == "" {
 		req.Set("OpenAI-Beta", "responses=experimental")

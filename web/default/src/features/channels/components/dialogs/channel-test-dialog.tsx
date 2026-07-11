@@ -415,8 +415,9 @@ function ChannelTestDialogContent({
     setPagination({ pageIndex: 0, pageSize: 20 })
   }, [])
 
+  const isCodexChannel = currentRow.type === 57
   const streamDisabled = STREAM_INCOMPATIBLE_ENDPOINTS.has(endpointType)
-  const effectiveStreamTest = !streamDisabled && isStreamTest
+  const effectiveStreamTest = isCodexChannel || (!streamDisabled && isStreamTest)
 
   const handleEndpointTypeChange = useCallback((value: string | null) => {
     if (value === null) return
@@ -1036,7 +1037,7 @@ function ChannelTestDialogContent({
                   id='stream-toggle'
                   checked={effectiveStreamTest}
                   onCheckedChange={setIsStreamTest}
-                  disabled={streamDisabled}
+                  disabled={streamDisabled || isCodexChannel}
                 />
                 <span className='text-sm'>
                   {effectiveStreamTest ? t('Enabled') : t('Disabled')}

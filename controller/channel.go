@@ -523,18 +523,40 @@ func addDefaultCodexModels(channel *model.Channel) {
 	if channel.Type != constant.ChannelTypeCodex {
 		return
 	}
+	if channel.TestModel == nil || strings.TrimSpace(*channel.TestModel) == "" {
+		channel.TestModel = common.GetPointer("gpt-5.4-mini")
+	}
 	models := channel.GetModels()
 	existing := make(map[string]struct{}, len(models))
 	for _, name := range models {
 		existing[name] = struct{}{}
 	}
 	for _, name := range codex.DefaultModelList {
-		if _, ok := existing[name]; ok {
-			continue
+		for _, model := range []string{name, "openai/" + name} {
+			if _, ok := existing[model]; ok {
+				continue
+			}
+			models = append(models, model)
+			existing[model] = struct{}{}
 		}
-		models = append(models, name)
 	}
 	channel.Models = strings.Join(models, ",")
+
+	mapping := make(map[string]string)
+	if channel.ModelMapping != nil && strings.TrimSpace(*channel.ModelMapping) != "" {
+		if err := common.Unmarshal([]byte(*channel.ModelMapping), &mapping); err != nil {
+			return
+		}
+	}
+	for _, name := range codex.DefaultModelList {
+		source := "openai/" + name
+		if _, ok := mapping[source]; !ok {
+			mapping[source] = name
+		}
+	}
+	if encoded, err := common.Marshal(mapping); err == nil {
+		channel.ModelMapping = common.GetPointer(string(encoded))
+	}
 }
 
 func RefreshCodexChannelCredential(c *gin.Context) {
