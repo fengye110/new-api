@@ -176,6 +176,12 @@ export interface SubscriptionAccessGroupPlan {
   enabled: boolean
 }
 
+export interface SubscriptionAccessEmailRule {
+  id: number
+  email: string
+  group_ids: number[]
+}
+
 export interface SubscriptionPayRequest {
   plan_id: number
   payment_method?: string

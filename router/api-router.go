@@ -174,6 +174,8 @@ func SetApiRouter(router *gin.Engine) {
 			subscriptionAdminRoute.PATCH("/plans/:id", controller.AdminUpdateSubscriptionPlanStatus)
 			subscriptionAdminRoute.DELETE("/plans/:id", controller.AdminDeleteSubscriptionPlan)
 			subscriptionAdminRoute.GET("/access-groups", controller.AdminListSubscriptionAccessGroups)
+			subscriptionAdminRoute.GET("/access-email-rules", controller.AdminListSubscriptionAccessEmailRules)
+			subscriptionAdminRoute.PUT("/access-email-rules", controller.AdminReplaceSubscriptionAccessEmailRules)
 			subscriptionAdminRoute.POST("/access-groups", controller.AdminCreateSubscriptionAccessGroup)
 			subscriptionAdminRoute.PUT("/access-groups/:id", controller.AdminUpdateSubscriptionAccessGroup)
 			subscriptionAdminRoute.PATCH("/access-groups/:id/status", controller.AdminSetSubscriptionAccessGroupStatus)

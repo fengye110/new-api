@@ -34,6 +34,7 @@ import type {
   SubscriptionAccessGroup,
   SubscriptionAccessGroupPlan,
   SubscriptionAccessGroupUser,
+  SubscriptionAccessEmailRule,
 } from './types'
 
 // ============================================================================
@@ -49,6 +50,22 @@ export async function getSubscriptionAccessGroups(): Promise<
   ApiResponse<SubscriptionAccessGroup[]>
 > {
   const res = await api.get('/api/subscription/admin/access-groups')
+  return res.data
+}
+
+export async function getSubscriptionAccessEmailRules(): Promise<
+  ApiResponse<SubscriptionAccessEmailRule[]>
+> {
+  const res = await api.get('/api/subscription/admin/access-email-rules')
+  return res.data
+}
+
+export async function replaceSubscriptionAccessEmailRules(
+  rules: Array<Pick<SubscriptionAccessEmailRule, 'email' | 'group_ids'>>
+): Promise<ApiResponse> {
+  const res = await api.put('/api/subscription/admin/access-email-rules', {
+    rules,
+  })
   return res.data
 }
 

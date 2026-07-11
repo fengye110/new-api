@@ -20,6 +20,33 @@ type replaceSubscriptionAccessGroupsRequest struct {
 	GroupIds []int `json:"group_ids"`
 }
 
+type replaceSubscriptionAccessEmailRulesRequest struct {
+	Rules []model.SubscriptionAccessEmailRule `json:"rules"`
+}
+
+func AdminListSubscriptionAccessEmailRules(c *gin.Context) {
+	rules, err := model.ListSubscriptionAccessEmailRules()
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, rules)
+}
+
+func AdminReplaceSubscriptionAccessEmailRules(c *gin.Context) {
+	var req replaceSubscriptionAccessEmailRulesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ApiErrorMsg(c, "参数错误")
+		return
+	}
+	if err := model.ReplaceSubscriptionAccessEmailRules(req.Rules); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	recordManageAudit(c, "subscription_access_email_rule.replace", map[string]interface{}{"rule_count": len(req.Rules)})
+	common.ApiSuccess(c, nil)
+}
+
 func AdminListSubscriptionAccessGroups(c *gin.Context) {
 	groups, err := model.ListSubscriptionAccessGroups()
 	if err != nil {

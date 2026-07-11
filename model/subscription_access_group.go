@@ -147,6 +147,13 @@ func UpdateSubscriptionAccessGroup(group *SubscriptionAccessGroup) error {
 		if !existing.Enabled || group.Enabled {
 			return nil
 		}
+		var emailRuleCount int64
+		if err := tx.Model(&SubscriptionAccessEmailRuleGroup{}).Where("group_id = ?", group.Id).Count(&emailRuleCount).Error; err != nil {
+			return err
+		}
+		if emailRuleCount > 0 {
+			return errors.New("订阅组仍被邮箱默认权限规则使用，无法禁用")
+		}
 		if err := tx.Model(&UserSubscriptionAccessGroup{}).Where("group_id = ?", group.Id).Pluck("user_id", &affectedUserIds).Error; err != nil {
 			return err
 		}
@@ -186,15 +193,18 @@ func DeleteSubscriptionAccessGroup(id int) error {
 	if group.IsDefault {
 		return errors.New("默认订阅组不允许删除")
 	}
-	var userCount, planCount int64
+	var userCount, planCount, emailRuleCount int64
 	if err := DB.Model(&UserSubscriptionAccessGroup{}).Where("group_id = ?", id).Count(&userCount).Error; err != nil {
 		return err
 	}
 	if err := DB.Model(&SubscriptionPlanAccessGroup{}).Where("group_id = ?", id).Count(&planCount).Error; err != nil {
 		return err
 	}
-	if userCount > 0 || planCount > 0 {
-		return fmt.Errorf("订阅组仍关联 %d 个用户和 %d 个套餐", userCount, planCount)
+	if err := DB.Model(&SubscriptionAccessEmailRuleGroup{}).Where("group_id = ?", id).Count(&emailRuleCount).Error; err != nil {
+		return err
+	}
+	if userCount > 0 || planCount > 0 || emailRuleCount > 0 {
+		return fmt.Errorf("订阅组仍关联 %d 个用户、%d 个套餐和 %d 条邮箱默认权限规则", userCount, planCount, emailRuleCount)
 	}
 	return DB.Delete(&group).Error
 }

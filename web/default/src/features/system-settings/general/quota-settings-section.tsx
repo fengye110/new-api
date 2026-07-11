@@ -44,10 +44,12 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from '@/components/design-system/select'
 import { getCurrencyDisplay } from '@/lib/currency'
 import { getGroups } from '@/features/users/api'
 import { formatQuota } from '@/lib/format'
+
+import { SubscriptionAccessEmailRules } from './subscription-access-email-rules'
 
 import { FormDirtyIndicator } from '../components/form-dirty-indicator'
 import { FormNavigationGuard } from '../components/form-navigation-guard'
@@ -448,6 +450,7 @@ export function QuotaSettingsSection({
           </Dialog>
         </SettingsForm>
       </Form>
+      <SubscriptionAccessEmailRules />
     </SettingsSection>
   )
 }
