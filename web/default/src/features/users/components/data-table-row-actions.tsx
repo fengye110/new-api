@@ -136,7 +136,27 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const isRoot = user.role === USER_ROLE.ROOT
 
   if (isUserDeleted(user)) {
-    return null
+    return (
+      <div className='-ml-1.5 flex items-center gap-1'>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant='ghost'
+                size='icon-sm'
+                onClick={handleDelete}
+                disabled={isRoot}
+                className='text-destructive hover:text-destructive'
+                aria-label={t('Delete')}
+              />
+            }
+          >
+            <Trash2 />
+          </TooltipTrigger>
+          <TooltipContent>{t('Delete')}</TooltipContent>
+        </Tooltip>
+      </div>
+    )
   }
 
   return (
