@@ -68,7 +68,7 @@ interface DataTableRowActionsProps {
 export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const { t } = useTranslation()
   const user = row.original
-  const currentUserRole = useAuthStore((state) => state.auth.user?.role)
+  const currentUser = useAuthStore((state) => state.auth.user)
   const { setOpen, setCurrentRow, triggerRefresh } = useUsers()
   const [resetPasskeyOpen, setResetPasskeyOpen] = useState(false)
   const [resetTwoFAOpen, setResetTwoFAOpen] = useState(false)
@@ -137,7 +137,9 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const isDisabled = user.status === USER_STATUS.DISABLED
   const isAdmin = user.role >= USER_ROLE.ADMIN
   const isRoot = user.role === USER_ROLE.ROOT
-  const canPromoteToRoot = currentUserRole === USER_ROLE.ROOT && !isRoot
+  const canManageOtherRoot =
+    currentUser?.role === USER_ROLE.ROOT && currentUser.id !== user.id
+  const canPromoteToRoot = currentUser?.role === USER_ROLE.ROOT && !isRoot
 
   if (isUserDeleted(user)) {
     return (
@@ -149,7 +151,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
                 variant='ghost'
                 size='icon-sm'
                 onClick={handleDelete}
-                disabled={isRoot}
+                disabled={isRoot && !canManageOtherRoot}
                 className='text-destructive hover:text-destructive'
                 aria-label={t('Delete')}
               />
@@ -195,7 +197,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
         ) : (
           <DropdownMenuItem
             onClick={() => handleManage('disable')}
-            disabled={isRoot}
+            disabled={isRoot && !canManageOtherRoot}
           >
             {t('Disable')}
             <DropdownMenuShortcut>
@@ -204,7 +206,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           </DropdownMenuItem>
         )}
 
-        {isAdmin && !isRoot && (
+        {isAdmin && (!isRoot || canManageOtherRoot) && (
           <DropdownMenuItem onClick={() => handleManage('demote')}>
             {t('Demote')}
             <DropdownMenuShortcut>
@@ -262,7 +264,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
             event.preventDefault()
             setResetPasskeyOpen(true)
           }}
-          disabled={isRoot}
+          disabled={isRoot && !canManageOtherRoot}
         >
           {t('Reset Passkey')}
           <DropdownMenuShortcut>

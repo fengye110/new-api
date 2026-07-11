@@ -921,7 +921,7 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 	myRole := c.GetInt("role")
-	if myRole <= originUser.Role {
+	if c.GetInt("id") == originUser.Id || (myRole != common.RoleRootUser && myRole <= originUser.Role) {
 		common.ApiErrorI18n(c, i18n.MsgUserNoPermissionHigherLevel)
 		return
 	}
@@ -1065,24 +1065,16 @@ func ManageUser(c *gin.Context) {
 		return
 	}
 	myRole := c.GetInt("role")
-	if !canManageTargetRole(myRole, user.Role) {
+	if c.GetInt("id") == user.Id || !canManageTargetRole(myRole, user.Role) {
 		common.ApiErrorI18n(c, i18n.MsgUserNoPermissionHigherLevel)
 		return
 	}
 	switch req.Action {
 	case "disable":
 		user.Status = common.UserStatusDisabled
-		if user.Role == common.RoleRootUser {
-			common.ApiErrorI18n(c, i18n.MsgUserCannotDisableRootUser)
-			return
-		}
 	case "enable":
 		user.Status = common.UserStatusEnabled
 	case "delete":
-		if user.Role == common.RoleRootUser {
-			common.ApiErrorI18n(c, i18n.MsgUserCannotDeleteRootUser)
-			return
-		}
 		if err := user.Delete(); err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
@@ -1116,10 +1108,6 @@ func ManageUser(c *gin.Context) {
 		}
 		user.Role = common.RoleRootUser
 	case "demote":
-		if user.Role == common.RoleRootUser {
-			common.ApiErrorI18n(c, i18n.MsgUserCannotDemoteRootUser)
-			return
-		}
 		if user.Role == common.RoleCommonUser {
 			common.ApiErrorI18n(c, i18n.MsgUserAlreadyCommon)
 			return
