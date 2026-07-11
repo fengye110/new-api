@@ -537,6 +537,9 @@ func (user *User) TransferAffQuotaToQuota(quota int) error {
 
 func (user *User) prepareForInsert(tx *gorm.DB) error {
 	user.Email = NormalizeEmail(user.Email)
+	if strings.TrimSpace(user.Group) == "" {
+		user.Group = common.DefaultGroupForNewUser
+	}
 	if err := ensureEmailAvailableWithTx(tx, user.Email, 0); err != nil {
 		return err
 	}

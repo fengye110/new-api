@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useQuery } from '@tanstack/react-query'
 import { useState, type ChangeEvent } from 'react'
 import type { Resolver } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -37,7 +38,15 @@ import {
 } from '@/components/ui/form'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { getCurrencyDisplay } from '@/lib/currency'
+import { getGroups } from '@/features/users/api'
 import { formatQuota } from '@/lib/format'
 
 import { FormDirtyIndicator } from '../components/form-dirty-indicator'
@@ -56,6 +65,7 @@ import { useUpdateOption } from '../hooks/use-update-option'
 
 const quotaSchema = z.object({
   QuotaForNewUser: z.coerce.number().min(0),
+  DefaultGroupForNewUser: z.string().min(1),
   PreConsumedQuota: z.coerce.number().min(0),
   QuotaForInviter: z.coerce.number().min(0),
   QuotaForInvitee: z.coerce.number().min(0),
@@ -87,6 +97,11 @@ export function QuotaSettingsSection({
 }: QuotaSettingsSectionProps) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
+  const { data: groupsData } = useQuery({
+    queryKey: ['groups'],
+    queryFn: getGroups,
+  })
+  const groups = groupsData?.data || []
   const [usdConverterOpen, setUsdConverterOpen] = useState(false)
   const [usdAmount, setUsdAmount] = useState('')
   const handleNumberChange =
@@ -173,6 +188,38 @@ export function QuotaSettingsSection({
                         formattedQuota: formatQuotaInputValue(field.value),
                       }
                     )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='DefaultGroupForNewUser'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Default Group for New Users')}</FormLabel>
+                  <Select
+                    items={groups.map((group) => ({ value: group, label: group }))}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t('Select a group')} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent alignItemWithTrigger={false}>
+                      {groups.map((group) => (
+                        <SelectItem key={group} value={group}>
+                          {group}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    {t('Newly registered users are assigned to this group by default.')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
