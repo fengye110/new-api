@@ -47,6 +47,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { UserSubscriptionsDialog } from '@/features/subscriptions/components/dialogs/user-subscriptions-dialog'
+import { useAuthStore } from '@/stores/auth-store'
 
 import { manageUser, resetUserPasskey, resetUserTwoFA } from '../api'
 import {
@@ -67,11 +68,13 @@ interface DataTableRowActionsProps {
 export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const { t } = useTranslation()
   const user = row.original
+  const currentUserRole = useAuthStore((state) => state.auth.user?.role)
   const { setOpen, setCurrentRow, triggerRefresh } = useUsers()
   const [resetPasskeyOpen, setResetPasskeyOpen] = useState(false)
   const [resetTwoFAOpen, setResetTwoFAOpen] = useState(false)
   const [bindingDialogOpen, setBindingDialogOpen] = useState(false)
   const [subscriptionsDialogOpen, setSubscriptionsDialogOpen] = useState(false)
+  const [promoteRootOpen, setPromoteRootOpen] = useState(false)
 
   const handleEdit = () => {
     setCurrentRow(user)
@@ -134,6 +137,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const isDisabled = user.status === USER_STATUS.DISABLED
   const isAdmin = user.role >= USER_ROLE.ADMIN
   const isRoot = user.role === USER_ROLE.ROOT
+  const canPromoteToRoot = currentUserRole === USER_ROLE.ROOT && !isRoot
 
   if (isUserDeleted(user)) {
     return (
@@ -218,6 +222,15 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           </DropdownMenuItem>
         )}
 
+        {canPromoteToRoot && (
+          <DropdownMenuItem onClick={() => setPromoteRootOpen(true)}>
+            {t('Promote to Root User')}
+            <DropdownMenuShortcut>
+              <ShieldAlert size={16} />
+            </DropdownMenuShortcut>
+          </DropdownMenuItem>
+        )}
+
         <DropdownMenuItem
           onSelect={(event) => {
             event.preventDefault()
@@ -283,6 +296,21 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           </DropdownMenuShortcut>
         </DropdownMenuItem>
       </DataTableRowActionMenu>
+
+      <ConfirmDialog
+        open={promoteRootOpen}
+        onOpenChange={setPromoteRootOpen}
+        title={t('Promote to Root User?')}
+        desc={t(
+          'Promote {{username}} to Root User? This grants full administrative access.',
+          { username: user.username }
+        )}
+        confirmText={t('Promote to Root User')}
+        handleConfirm={async () => {
+          await handleManage('promote-root')
+          setPromoteRootOpen(false)
+        }}
+      />
 
       <ConfirmDialog
         open={resetPasskeyOpen}

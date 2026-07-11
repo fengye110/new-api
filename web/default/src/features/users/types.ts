@@ -119,6 +119,7 @@ export interface UserFormData {
 
 export type ManageUserAction =
   | 'promote'
+  | 'promote-root'
   | 'demote'
   | 'enable'
   | 'disable'
