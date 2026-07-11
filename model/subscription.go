@@ -525,7 +525,7 @@ func CreateUserSubscriptionFromPlanTx(tx *gorm.DB, userId int, plan *Subscriptio
 			return nil, errors.New("已达到该套餐购买上限")
 		}
 	}
-	nowUnix := GetDBTimestamp()
+	nowUnix := getDBTimestamp(tx)
 	now := time.Unix(nowUnix, 0)
 	endUnix, err := calcPlanEndTime(now, plan)
 	if err != nil {
@@ -581,13 +581,39 @@ func CreateUserSubscriptionFromPlanTx(tx *gorm.DB, userId int, plan *Subscriptio
 	return sub, nil
 }
 
-// AutoSubscribeFreePlansForNewUser subscribes a new user to every enabled,
-// free plan that they are permitted to access.
+// AutoSubscribeFreePlansForNewUser subscribes a new user to one enabled free
+// plan. Plans available through non-default access groups take precedence.
 func AutoSubscribeFreePlansForNewUser(userId int) error {
 	if userId <= 0 {
 		return errors.New("invalid user id")
 	}
 	return DB.Transaction(func(tx *gorm.DB) error {
+		var nonDefaultGroupIds []int
+		if err := tx.Table("subscription_access_groups AS g").
+			Select("g.id").
+			Joins("JOIN user_subscription_access_groups AS ug ON ug.group_id = g.id").
+			Where("ug.user_id = ? AND g.enabled = ? AND g.is_default = ?", userId, true, false).
+			Pluck("g.id", &nonDefaultGroupIds).Error; err != nil {
+			return err
+		}
+
+		if len(nonDefaultGroupIds) > 0 {
+			var preferredPlans []SubscriptionPlan
+			if err := tx.Model(&SubscriptionPlan{}).
+				Distinct().
+				Joins("JOIN subscription_plan_access_groups AS pg ON pg.plan_id = subscription_plans.id").
+				Joins("JOIN subscription_access_groups AS g ON g.id = pg.group_id").
+				Where("subscription_plans.enabled = ? AND subscription_plans.price_amount = ? AND pg.group_id IN ? AND g.enabled = ?", true, 0, nonDefaultGroupIds, true).
+				Order("subscription_plans.sort_order DESC, subscription_plans.id ASC").
+				Find(&preferredPlans).Error; err != nil {
+				return err
+			}
+			if len(preferredPlans) > 0 {
+				_, err := CreateUserSubscriptionFromPlanTx(tx, userId, &preferredPlans[0], "new_user_auto")
+				return err
+			}
+		}
+
 		var plans []SubscriptionPlan
 		if err := tx.Where("enabled = ? AND price_amount = ?", true, 0).Order("sort_order desc, id asc").Find(&plans).Error; err != nil {
 			return err
@@ -600,9 +626,8 @@ func AutoSubscribeFreePlansForNewUser(userId int) error {
 			if !allowed {
 				continue
 			}
-			if _, err := CreateUserSubscriptionFromPlanTx(tx, userId, &plans[i], "new_user_auto"); err != nil {
-				return err
-			}
+			_, err = CreateUserSubscriptionFromPlanTx(tx, userId, &plans[i], "new_user_auto")
+			return err
 		}
 		return nil
 	})

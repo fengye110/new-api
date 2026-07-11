@@ -143,9 +143,18 @@ export function UsersMutateDrawer({
   useEffect(() => {
     if (!open) return
 
-    getSubscriptionAccessGroups().then((result) => {
-      if (result.success) setSubscriptionGroups(result.data || [])
-    }).catch(() => {})
+    getSubscriptionAccessGroups()
+      .then((result) => {
+        if (!result.success) return
+        const groups = result.data || []
+        setSubscriptionGroups(groups)
+        if (!isUpdate) {
+          setSubscriptionGroupIds(
+            groups.filter((group) => group.is_default).map((group) => group.id)
+          )
+        }
+      })
+      .catch(() => {})
 
     if (isUpdate && currentRow) {
       // For update, fetch fresh data
