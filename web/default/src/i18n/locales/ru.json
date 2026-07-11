@@ -3502,6 +3502,7 @@
     "Pricing mode": "Режим ценообразования",
     "Pricing Ratios": "Коэффициенты ценообразования",
     "Pricing Type": "Тип ценообразования",
+    "Primary Group": "Основная группа",
     "Primary Model": "Основная модель",
     "Prioritize reusing the last successful channel based on keys extracted from request context (sticky routing)": "Приоритет повторного использования последнего успешного канала на основе ключей из контекста запроса (липкая маршрутизация)",
     "Priority": "Приоритет",

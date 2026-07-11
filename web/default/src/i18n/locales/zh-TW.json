@@ -3502,6 +3502,7 @@
     "Pricing mode": "定價模式",
     "Pricing Ratios": "定價比例",
     "Pricing Type": "定價類型",
+    "Primary Group": "主要分組",
     "Primary Model": "主模型",
     "Prioritize reusing the last successful channel based on keys extracted from request context (sticky routing)": "基於請求上下文提取的 Key，優先複用上一次成功的渠道（粘滯選路）",
     "Priority": "優先級",

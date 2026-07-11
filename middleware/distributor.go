@@ -92,7 +92,13 @@ func Distribute() func(c *gin.Context) {
 						return
 					}
 					if playgroundRequest.Group != "" {
-						if !service.GroupInUserUsableGroups(usingGroup, playgroundRequest.Group) && playgroundRequest.Group != usingGroup {
+						user, err := model.GetUserCache(c.GetInt("id"))
+						if err != nil {
+							common.SysError(fmt.Sprintf("GetUserCache error for playground user %d: %v", c.GetInt("id"), err))
+							abortWithOpenAiMessage(c, http.StatusInternalServerError, common.TranslateMessage(c, i18n.MsgDatabaseError))
+							return
+						}
+						if _, ok := service.GetUserUsableGroupsForGroups(user.GetRelayGroups())[playgroundRequest.Group]; !ok {
 							abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorGroupAccessDenied))
 							return
 						}

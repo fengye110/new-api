@@ -3502,6 +3502,7 @@
     "Pricing mode": "価格モード",
     "Pricing Ratios": "価格比率",
     "Pricing Type": "価格タイプ",
+    "Primary Group": "メイングループ",
     "Primary Model": "プライマリモデル",
     "Prioritize reusing the last successful channel based on keys extracted from request context (sticky routing)": "リクエストコンテキストから抽出したキーに基づいて、前回成功したチャネルを優先的に再利用します（スティッキールーティング）",
     "Priority": "優先度",

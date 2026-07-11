@@ -3502,6 +3502,7 @@
     "Pricing mode": "Chế độ định giá",
     "Pricing Ratios": "Tỷ lệ định giá",
     "Pricing Type": "Price type",
+    "Primary Group": "Nhóm chính",
     "Primary Model": "Mô hình chính",
     "Prioritize reusing the last successful channel based on keys extracted from request context (sticky routing)": "Ưu tiên sử dụng lại kênh thành công gần nhất dựa trên các khóa trích xuất từ ngữ cảnh yêu cầu (định tuyến dính)",
     "Priority": "Ưu tiên",

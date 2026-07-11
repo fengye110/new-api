@@ -53,6 +53,7 @@ type User struct {
 	CreatedAt            int64                      `json:"created_at" gorm:"autoCreateTime;column:created_at"`
 	LastLoginAt          int64                      `json:"last_login_at" gorm:"default:0;column:last_login_at"`
 	AdminPermissions     map[string]map[string]bool `json:"admin_permissions,omitempty" gorm:"-:all"`
+	RelayGroups          []string                   `json:"relay_groups,omitempty" gorm:"-:all"`
 	SubscriptionGroupIds []int                      `json:"subscription_group_ids,omitempty" gorm:"-:all"`
 }
 
@@ -83,13 +84,14 @@ func populateUserSubscriptionGroupIds(tx *gorm.DB, users []*User) error {
 
 func (user *User) ToBaseUser() *UserBase {
 	cache := &UserBase{
-		Id:       user.Id,
-		Group:    user.Group,
-		Quota:    user.Quota,
-		Status:   user.Status,
-		Username: user.Username,
-		Setting:  user.Setting,
-		Email:    user.Email,
+		Id:          user.Id,
+		Group:       user.Group,
+		RelayGroups: strings.Join(user.RelayGroups, ","),
+		Quota:       user.Quota,
+		Status:      user.Status,
+		Username:    user.Username,
+		Setting:     user.Setting,
+		Email:       user.Email,
 	}
 	return cache
 }
@@ -341,6 +343,10 @@ func GetAllUsers(pageInfo *common.PageInfo) (users []*User, total int64, err err
 		tx.Rollback()
 		return nil, 0, err
 	}
+	if err = populateUserRelayGroups(tx, users); err != nil {
+		tx.Rollback()
+		return nil, 0, err
+	}
 
 	// Commit transaction
 	if err = tx.Commit().Error; err != nil {
@@ -383,7 +389,8 @@ func SearchUsers(keyword string, group string, subscriptionGroupIds []int, role 
 
 	query = query.Where("("+likeCondition+")", likeArgs...)
 	if group != "" {
-		query = query.Where(commonGroupCol+" = ?", group)
+		relayGroupUsers := tx.Model(&UserRelayGroup{}).Select("user_id").Where(commonGroupCol+" = ?", group)
+		query = query.Where(commonGroupCol+" = ? OR id IN (?)", group, relayGroupUsers)
 	}
 	if len(subscriptionGroupIds) > 0 {
 		var groups []SubscriptionAccessGroup
@@ -432,6 +439,10 @@ func SearchUsers(keyword string, group string, subscriptionGroupIds []int, role 
 		tx.Rollback()
 		return nil, 0, err
 	}
+	if err = populateUserRelayGroups(tx, users); err != nil {
+		tx.Rollback()
+		return nil, 0, err
+	}
 
 	// 提交事务
 	if err = tx.Commit().Error; err != nil {
@@ -452,7 +463,13 @@ func GetUserById(id int, selectAll bool) (*User, error) {
 	} else {
 		err = DB.Omit("password", "access_token").First(&user, "id = ?", id).Error
 	}
-	return &user, err
+	if err != nil {
+		return &user, err
+	}
+	if err = populateUserRelayGroups(DB, []*User{&user}); err != nil {
+		return &user, err
+	}
+	return &user, nil
 }
 
 func GetUserIdByAffCode(affCode string) (int, error) {

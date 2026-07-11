@@ -624,7 +624,7 @@ func GetUserModels(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	groups := service.GetUserUsableGroups(user.Group)
+	groups := service.GetUserUsableGroupsForGroups(user.GetRelayGroups())
 	group := c.Query("group")
 	if group != "" {
 		if _, ok := groups[group]; !ok {
@@ -702,6 +702,11 @@ func UpdateUser(c *gin.Context) {
 	if err := model.DB.Transaction(func(tx *gorm.DB) error {
 		if err := updatedUser.EditWithTx(tx, updatePassword); err != nil {
 			return err
+		}
+		if updatedUser.RelayGroups != nil {
+			if err := model.ReplaceUserRelayGroupsTx(tx, updatedUser.Id, updatedUser.Group, updatedUser.RelayGroups); err != nil {
+				return err
+			}
 		}
 		touched, err := updateAdminPermissionsForUserInTx(c, tx, updatedUser.Id, originUser.Role, updatedUser.AdminPermissions)
 		authzTouched = touched
@@ -988,10 +993,14 @@ func CreateUser(c *gin.Context) {
 		Password:    user.Password,
 		DisplayName: user.DisplayName,
 		Role:        user.Role, // 保持管理员设置的角色
+		Group:       user.Group,
 	}
 	authzTouched := false
 	if err := model.DB.Transaction(func(tx *gorm.DB) error {
 		if err := cleanUser.InsertWithTx(tx, 0); err != nil {
+			return err
+		}
+		if err := model.ReplaceUserRelayGroupsTx(tx, cleanUser.Id, cleanUser.Group, user.RelayGroups); err != nil {
 			return err
 		}
 		if err := model.ReplaceUserSubscriptionAccessGroupsTx(tx, cleanUser.Id, user.SubscriptionGroupIds, c.GetInt("id")); err != nil {

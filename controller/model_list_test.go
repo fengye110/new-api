@@ -49,7 +49,7 @@ func setupModelListControllerTestDB(t *testing.T) *gorm.DB {
 	model.DB = db
 	model.LOG_DB = db
 
-	require.NoError(t, db.AutoMigrate(&model.User{}, &model.Channel{}, &model.Ability{}, &model.Model{}, &model.Vendor{}))
+	require.NoError(t, db.AutoMigrate(&model.User{}, &model.UserRelayGroup{}, &model.Channel{}, &model.Ability{}, &model.Model{}, &model.Vendor{}))
 
 	t.Cleanup(func() {
 		sqlDB, err := db.DB()
@@ -176,8 +176,10 @@ func TestGetUserModelsFiltersByRequestedGroup(t *testing.T) {
 	}).Error)
 	require.NoError(t, db.Create(&[]model.Ability{
 		{Group: "default", Model: "zz-default-only-model", ChannelId: 1, Enabled: true},
+		{Group: "chatgpt", Model: "zz-chatgpt-only-model", ChannelId: 1, Enabled: true},
 		{Group: "default", Model: "zz-disabled-model", ChannelId: 1, Enabled: false},
 	}).Error)
+	require.NoError(t, db.Create(&model.UserRelayGroup{UserId: 1002, Group: "chatgpt"}).Error)
 
 	defaultRecorder := httptest.NewRecorder()
 	defaultContext, _ := gin.CreateTestContext(defaultRecorder)
@@ -197,6 +199,15 @@ func TestGetUserModelsFiltersByRequestedGroup(t *testing.T) {
 	GetUserModels(vipContext)
 
 	require.Empty(t, decodeUserModelsResponse(t, vipRecorder))
+
+	chatgptRecorder := httptest.NewRecorder()
+	chatgptContext, _ := gin.CreateTestContext(chatgptRecorder)
+	chatgptContext.Request = httptest.NewRequest(http.MethodGet, "/api/user/models?group=chatgpt", nil)
+	chatgptContext.Set("id", 1002)
+
+	GetUserModels(chatgptContext)
+
+	require.ElementsMatch(t, []string{"zz-chatgpt-only-model"}, decodeUserModelsResponse(t, chatgptRecorder))
 }
 
 func TestListModelsIncludesTieredBillingModel(t *testing.T) {

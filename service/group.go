@@ -36,6 +36,16 @@ func GetUserUsableGroups(userGroup string) map[string]string {
 	return groupsCopy
 }
 
+func GetUserUsableGroupsForGroups(userGroups []string) map[string]string {
+	groups := make(map[string]string)
+	for _, userGroup := range userGroups {
+		for group, description := range GetUserUsableGroups(userGroup) {
+			groups[group] = description
+		}
+	}
+	return groups
+}
+
 func GroupInUserUsableGroups(userGroup, groupName string) bool {
 	_, ok := GetUserUsableGroups(userGroup)[groupName]
 	return ok

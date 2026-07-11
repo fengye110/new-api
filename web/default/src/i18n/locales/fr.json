@@ -3502,6 +3502,7 @@
     "Pricing mode": "Mode de tarification",
     "Pricing Ratios": "Ratios de tarification",
     "Pricing Type": "Type de tarification",
+    "Primary Group": "Groupe principal",
     "Primary Model": "Modèle principal",
     "Prioritize reusing the last successful channel based on keys extracted from request context (sticky routing)": "Priorise la réutilisation du dernier canal ayant réussi, basé sur les clés extraites du contexte de la requête (routage persistant)",
     "Priority": "Priorité",
