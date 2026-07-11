@@ -43,6 +43,7 @@ func StartCodexHeadlessLogin(c *gin.Context) {
 	channel.Key = `{"access_token":"pending","account_id":"pending"}`
 	channel.ChannelInfo.IsMultiKey = false
 	channel.ChannelInfo.MultiKeySize = 0
+	addDefaultCodexModels(&channel)
 	if err := validateChannel(&channel, true); err != nil {
 		common.ApiError(c, err)
 		return

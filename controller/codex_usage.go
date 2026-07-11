@@ -58,12 +58,17 @@ func ImportCodexChannelCredential(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	oauthKey, err := codex.ParseOAuthKey(string(raw))
-	if err != nil || strings.TrimSpace(oauthKey.AccessToken) == "" || strings.TrimSpace(oauthKey.AccountID) == "" {
+	normalizedKey, err := codex.NormalizeOAuthKey(string(raw))
+	if err != nil {
 		common.ApiErrorMsg(c, "invalid Codex OAuth credential: access_token and account_id are required")
 		return
 	}
-	ciphertext, err := common.EncryptCodexOAuthKeyForChannel(string(raw), channel.Id)
+	oauthKey, err := codex.ParseOAuthKey(normalizedKey)
+	if err != nil {
+		common.ApiErrorMsg(c, "invalid Codex OAuth credential: access_token and account_id are required")
+		return
+	}
+	ciphertext, err := common.EncryptCodexOAuthKeyForChannel(normalizedKey, channel.Id)
 	if err != nil {
 		common.ApiError(c, err)
 		return

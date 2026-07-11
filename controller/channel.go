@@ -15,6 +15,7 @@ import (
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	relaychannel "github.com/QuantumNous/new-api/relay/channel"
+	"github.com/QuantumNous/new-api/relay/channel/codex"
 	"github.com/QuantumNous/new-api/relay/channel/gemini"
 	"github.com/QuantumNous/new-api/relay/channel/ollama"
 	"github.com/QuantumNous/new-api/service"
@@ -507,23 +508,33 @@ func validateChannel(channel *model.Channel, isAdd bool) error {
 			if common.IsEncryptedCodexOAuthKey(trimmedKey) {
 				return nil
 			}
-			if !strings.HasPrefix(trimmedKey, "{") {
-				return fmt.Errorf("Codex key must be a valid JSON object")
+			normalizedKey, err := codex.NormalizeOAuthKey(trimmedKey)
+			if err != nil {
+				return fmt.Errorf("invalid Codex OAuth credential: %w", err)
 			}
-			var keyMap map[string]any
-			if err := common.Unmarshal([]byte(trimmedKey), &keyMap); err != nil {
-				return fmt.Errorf("Codex key must be a valid JSON object")
-			}
-			if v, ok := keyMap["access_token"]; !ok || v == nil || strings.TrimSpace(fmt.Sprintf("%v", v)) == "" {
-				return fmt.Errorf("Codex key JSON must include access_token")
-			}
-			if v, ok := keyMap["account_id"]; !ok || v == nil || strings.TrimSpace(fmt.Sprintf("%v", v)) == "" {
-				return fmt.Errorf("Codex key JSON must include account_id")
-			}
+			channel.Key = normalizedKey
 		}
 	}
 
 	return nil
+}
+
+func addDefaultCodexModels(channel *model.Channel) {
+	if channel.Type != constant.ChannelTypeCodex {
+		return
+	}
+	models := channel.GetModels()
+	existing := make(map[string]struct{}, len(models))
+	for _, name := range models {
+		existing[name] = struct{}{}
+	}
+	for _, name := range codex.DefaultModelList {
+		if _, ok := existing[name]; ok {
+			continue
+		}
+		models = append(models, name)
+	}
+	channel.Models = strings.Join(models, ",")
 }
 
 func RefreshCodexChannelCredential(c *gin.Context) {
@@ -604,6 +615,8 @@ func AddChannel(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+
+	addDefaultCodexModels(addChannelRequest.Channel)
 
 	// 使用统一的校验函数
 	if err := validateChannel(addChannelRequest.Channel, true); err != nil {

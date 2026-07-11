@@ -1,7 +1,9 @@
 package codex
 
 import (
+	"encoding/base64"
 	"errors"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 )
@@ -20,6 +22,114 @@ type OAuthKey struct {
 
 func ParseOAuthKey(raw string) (*OAuthKey, error) {
 	return ParseOAuthKeyForChannel(raw, 0)
+}
+
+// NormalizeOAuthKey converts supported OAuth export formats to the credential
+// schema used by Codex channels.
+func NormalizeOAuthKey(raw string) (string, error) {
+	var payload map[string]any
+	if err := common.Unmarshal([]byte(strings.TrimSpace(raw)), &payload); err != nil {
+		return "", errors.New("invalid oauth key json")
+	}
+
+	credential := payload
+	metadata := payload
+	if accounts, ok := payload["accounts"].([]any); ok {
+		for _, item := range accounts {
+			account, ok := item.(map[string]any)
+			if !ok || strings.ToLower(stringValue(account["platform"])) != "openai" {
+				continue
+			}
+			if values, ok := account["credentials"].(map[string]any); ok {
+				credential = values
+				metadata = account
+				break
+			}
+		}
+	} else if openAI, ok := payload["openai"].(map[string]any); ok {
+		credential = openAI
+	}
+
+	key := OAuthKey{
+		IDToken:      firstString([]string{"id_token", "id"}, credential, payload),
+		AccessToken:  firstString([]string{"access_token", "access"}, credential, payload),
+		RefreshToken: firstString([]string{"refresh_token", "refresh"}, credential, payload),
+		AccountID: firstString([]string{"account_id", "chatgpt_account_id", "accountId"},
+			credential, metadata, payload),
+		LastRefresh: firstString([]string{"last_refresh"}, credential, metadata, payload),
+		Email:       firstString([]string{"email"}, credential, metadata, payload),
+		Type:        "codex",
+		Expired:     firstString([]string{"expired"}, credential, metadata, payload),
+	}
+	if key.AccessToken == "" {
+		return "", errors.New("access_token is required")
+	}
+	if key.AccountID == "" {
+		key.AccountID = accountIDFromAccessToken(key.AccessToken)
+	}
+	if key.AccountID == "" {
+		key.AccountID = firstString([]string{"chatgpt_user_id"}, credential, metadata, payload)
+	}
+	if key.AccountID == "" {
+		return "", errors.New("account_id is required")
+	}
+	if key.Email == "" {
+		key.Email = emailFromAccessToken(key.AccessToken)
+	}
+
+	encoded, err := common.Marshal(key)
+	if err != nil {
+		return "", err
+	}
+	return string(encoded), nil
+}
+
+func firstString(keys []string, values ...map[string]any) string {
+	for _, data := range values {
+		for _, key := range keys {
+			if value := stringValue(data[key]); value != "" {
+				return value
+			}
+		}
+	}
+	return ""
+}
+
+func stringValue(value any) string {
+	text, ok := value.(string)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(text)
+}
+
+func accountIDFromAccessToken(token string) string {
+	claims := jwtClaims(token)
+	auth, ok := claims["https://api.openai.com/auth"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	return stringValue(auth["chatgpt_account_id"])
+}
+
+func emailFromAccessToken(token string) string {
+	return stringValue(jwtClaims(token)["email"])
+}
+
+func jwtClaims(token string) map[string]any {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return nil
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil
+	}
+	var claims map[string]any
+	if err := common.Unmarshal(payload, &claims); err != nil {
+		return nil
+	}
+	return claims
 }
 
 func ParseOAuthKeyForChannel(raw string, channelID int) (*OAuthKey, error) {
